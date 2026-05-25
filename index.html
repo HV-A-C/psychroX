@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PSYCHRO-X Engine | Air Properties Calculator</title>
+<meta name="description" content="PSYCHRO-X Engine — ASHRAE 2021 Psychrometric Air Properties Calculator. Precision HVAC & Thermodynamic Analysis.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f5;--surf:#ffffff;--surf2:#f5f7fa;--surf3:#eceff4;
+  --bdr:#dde2ea;--bdr2:#c4cdd8;
+  --tx1:#18232f;--tx2:#455568;--tx3:#8094a8;
+  --blue:#1b5faa;--blue2:#2672cc;--blue-bg:#eaf1fb;--blue-bdr:#b8d0f0;
+  --grn:#1a7845;--grn-bg:#e8f5ee;--grn-bdr:#9dd0b5;--grn-glow:#22c55e;
+  --amb:#7c5200;--amb-bg:#fef3e2;--amb-bdr:#e8c062;
+  --red:#b91c1c;--red-bg:#fef2f2;--red-bdr:#fca5a5;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05);
+  --sh2:0 4px 14px rgba(0,0,0,.09);--sh3:0 12px 40px rgba(0,0,0,.14);
+  --r:6px;--r2:10px;--r3:16px;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;height:100%}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx1);font-size:13.5px;line-height:1.5;min-height:100vh}
+
+/* SPLASH */
+#splash{position:fixed;inset:0;background:#0a1520;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.8rem}
+#splash.fade-out{animation:splFade .7s ease forwards}
+@keyframes splFade{to{opacity:0;pointer-events:none}}
+.spl-emblem{position:relative;width:100px;height:100px}
+.spl-emblem svg{width:100%;height:100%}
+.curve-path{stroke-dasharray:220;stroke-dashoffset:220;animation:drawCurve 2s ease forwards .3s}
+@keyframes drawCurve{to{stroke-dashoffset:0}}
+.state-pt{opacity:0;animation:fadeIn .4s ease forwards 1.6s}
+@keyframes fadeIn{to{opacity:1}}
+.spl-name{font-size:1.65rem;font-weight:700;color:#e2eaf5;letter-spacing:.08em;text-align:center}
+.spl-sub{font-family:var(--mono);font-size:.62rem;color:#2a6090;letter-spacing:.14em;text-transform:uppercase;text-align:center;margin-top:.2rem}
+.spl-tag{font-family:var(--mono);font-size:.6rem;color:#3d6585;letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-top:.3rem}
+.spl-bar{width:240px;height:2px;background:#152030;border-radius:1px;overflow:hidden;margin-top:.6rem}
+.spl-fill{height:100%;width:0;background:linear-gradient(90deg,#1b5faa,#4db8d4,#22c55e);animation:sBar 2.5s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes sBar{to{width:100%}}
+.spl-log{font-family:var(--mono);font-size:.6rem;color:#2d5068;height:14px;text-align:center}
+
+/* APP */
+#app{min-height:100vh;opacity:0;transition:opacity .6s}
+#app.visible{opacity:1}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:200;background:var(--surf);border-bottom:1px solid var(--bdr);box-shadow:var(--sh);height:56px;padding:0 1.25rem;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{display:flex;align-items:center;gap:.75rem}
+.brand-ico{width:36px;height:36px;background:linear-gradient(135deg,#0f3d7a,#1b5faa,#2672cc);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 2px 8px rgba(27,95,170,.35);animation:brandPulse 3.4s ease-in-out infinite}
+.brand-ico::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.15) 0%,transparent 60%);border-radius:inherit}
+.brand-ico::after{content:'';position:absolute;width:6px;height:6px;border-radius:50%;background:#4dd8ff;right:5px;top:5px;opacity:.9;box-shadow:0 0 0 2px rgba(77,216,255,.3),0 0 10px rgba(77,216,255,.8);animation:dotPulse 2.1s ease-in-out infinite}
+.brand-ico svg{width:20px;height:20px;position:relative;z-index:1}
+@keyframes brandPulse{0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 2px 8px rgba(27,95,170,.35)}50%{box-shadow:0 0 0 1px rgba(255,255,255,.28) inset,0 2px 16px rgba(27,95,170,.6),0 0 32px rgba(77,216,255,.12)}}
+@keyframes dotPulse{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+.brand-name{font-weight:700;font-size:.95rem;color:var(--tx1);letter-spacing:.05em}
+.brand-div{color:var(--bdr2);margin:0 .3rem}
+.brand-desc{font-family:var(--mono);font-size:.58rem;color:var(--tx3)}
+.brand-quote{font-family:var(--mono);font-size:.52rem;color:var(--tx3);font-style:italic;margin-top:.1rem;letter-spacing:.01em;max-width:380px;line-height:1.4}
+.nav-pills{display:flex;gap:.4rem;align-items:center}
+.pill{font-family:var(--mono);font-size:.58rem;padding:2px 7px;border-radius:4px;letter-spacing:.04em}
+.pill-b{color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-bdr)}
+.pill-g{color:var(--grn);background:var(--grn-bg);border:1px solid var(--grn-bdr)}
+
+/* LAYOUT */
+.wrap{max-width:1480px;margin:0 auto;padding:1.2rem 1.2rem 4.5rem}
+.grid2{display:grid;grid-template-columns:330px 1fr;gap:1.1rem;align-items:start}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+
+/* CARD */
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r2);box-shadow:var(--sh)}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:.7rem .95rem;border-bottom:1px solid var(--bdr)}
+.ct{font-weight:600;font-size:.78rem;color:var(--tx1);display:flex;align-items:center;gap:.4rem}
+.ci{width:17px;height:17px;background:var(--blue-bg);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ci svg{width:10px;height:10px;stroke:var(--blue);fill:none;stroke-width:2;stroke-linecap:round}
+.cb{padding:.85rem .95rem}
+
+/* LED */
+.led{width:7px;height:7px;border-radius:50%;background:#c8d4de;border:1px solid #b0bec8;flex-shrink:0;transition:all .3s;display:inline-block}
+.led.on{background:var(--grn-glow);border-color:#15a34a;box-shadow:0 0 0 2.5px rgba(34,197,94,.18),0 0 7px rgba(34,197,94,.45)}
+.led.amb{background:#f59e0b;border-color:#d97706;box-shadow:0 0 0 2px rgba(245,158,11,.2)}
+
+/* FIELDS */
+.sec{font-family:var(--mono);font-size:.59rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.09em;display:flex;align-items:center;gap:.4rem;margin:.55rem 0 .4rem}
+.sec::after{content:'';flex:1;height:1px;background:var(--bdr)}
+.fr{display:flex;align-items:center;gap:.4rem;margin-bottom:.42rem}
+.fn{font-size:.72rem;color:var(--tx2);font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fn sub{font-size:.62rem}
+.fsym{font-family:var(--mono);font-size:.62rem;color:var(--tx3);font-weight:400}
+.fw{display:flex;align-items:stretch;border:1px solid var(--bdr2);border-radius:var(--r);overflow:hidden;width:145px;flex-shrink:0;transition:border-color .15s,box-shadow .15s;background:var(--surf)}
+.fw:focus-within{border-color:var(--blue);box-shadow:0 0 0 2px rgba(27,95,170,.12)}
+.fw.gu{border-color:var(--grn-glow);background:var(--grn-bg)}
+.fw.gu:focus-within{box-shadow:0 0 0 2px rgba(34,197,94,.15)}
+.fw.gc{border-color:var(--blue-bdr);background:var(--blue-bg)}
+.fi{width:100%;border:none;outline:none;font-family:var(--mono);font-size:.8rem;color:var(--tx1);background:transparent;padding:.3rem .42rem;text-align:right;min-width:0}
+.fi::placeholder{color:var(--tx3);font-size:.7rem}
+.fi.vg{color:var(--grn);font-weight:500}
+.fi.vb{color:var(--blue);font-weight:500}
+.fu{font-family:var(--mono);font-size:.6rem;color:var(--tx3);padding:0 .38rem;background:var(--surf2);border-left:1px solid var(--bdr);display:flex;align-items:center;white-space:nowrap;min-width:30px;justify-content:center}
+.fw.gu .fu{background:rgba(34,197,94,.05);border-color:var(--grn-bdr)}
+.fw.gc .fu{background:var(--blue-bg);border-color:var(--blue-bdr)}
+.divider{height:1px;background:var(--bdr);margin:.45rem 0}
+
+/* UNIT TOGGLE */
+.utog{display:flex;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:2px}
+.ub{font-family:var(--mono);font-size:.62rem;padding:.18rem .52rem;border:none;border-radius:4px;background:none;color:var(--tx3);cursor:pointer;transition:all .15s;letter-spacing:.03em}
+.ub.on{background:var(--surf);color:var(--blue);box-shadow:0 1px 2px rgba(0,0,0,.08);font-weight:500}
+
+/* BUTTONS */
+.btn-main{width:100%;padding:.58rem;background:var(--blue);color:#fff;border:none;border-radius:var(--r);font-family:var(--sans);font-size:.76rem;font-weight:600;cursor:pointer;letter-spacing:.02em;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:.35rem}
+.btn-main:hover{background:var(--blue2);box-shadow:0 2px 10px rgba(27,95,170,.28)}
+.btn-main:active{transform:scale(.99)}
+.btn-rst{width:100%;padding:.36rem;background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--tx3);font-size:.68rem;cursor:pointer;font-family:var(--sans);transition:all .15s;margin-top:.38rem}
+.btn-rst:hover{border-color:var(--red-bdr);color:var(--red);background:var(--red-bg)}
+.bsm{font-size:.68rem;color:var(--tx2);background:none;border:1px solid var(--bdr);border-radius:var(--r);padding:.22rem .6rem;cursor:pointer;font-family:var(--sans);transition:all .15s;white-space:nowrap}
+.bsm:hover{background:var(--surf2);border-color:var(--bdr2)}
+.bsm.on{background:var(--blue-bg);border-color:var(--blue-bdr);color:var(--blue)}
+
+/* STATUS */
+.sbar{padding:.42rem .8rem;background:var(--surf2);border-top:1px solid var(--bdr);border-radius:0 0 var(--r2) var(--r2);font-family:var(--mono);font-size:.59rem;color:var(--tx3);display:flex;align-items:center;gap:.42rem;min-height:28px}
+.sok{color:var(--grn)}.serr{color:var(--red)}.swarn{color:var(--amb)}
+
+/* RESULTS TABLE */
+.ptbl{width:100%;border-collapse:collapse;font-size:.76rem}
+.ptbl th{font-family:var(--mono);font-size:.58rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;padding:.4rem .62rem;border-bottom:1px solid var(--bdr);background:var(--surf2);text-align:left}
+.ptbl th.tr{text-align:right}
+.ptbl td{padding:.46rem .62rem;border-bottom:1px solid var(--bg);vertical-align:middle}
+.ptbl tr:last-child td{border-bottom:none}
+.ptbl tr:hover td{background:var(--surf2)}
+.row-g td{background:var(--grn-bg)!important}
+.row-c td{background:var(--blue-bg)!important}
+.tv{font-family:var(--mono);font-weight:500;text-align:right}
+.tv.g{color:var(--grn)}.tv.b{color:var(--blue)}.tv.dim{color:var(--tx3)}
+.fmlc{font-family:var(--mono);font-size:.57rem;color:var(--tx2);max-width:210px;word-break:break-word;line-height:1.45}
+.refc{font-family:var(--mono);font-size:.55rem;color:var(--tx3)}
+.hid{display:none}
+
+/* LEGEND */
+.leg{display:flex;flex-wrap:wrap;gap:.38rem;padding:.5rem .78rem;border-top:1px solid var(--bdr);background:var(--surf)}
+.li{display:flex;align-items:center;gap:.28rem;font-family:var(--mono);font-size:.58rem;color:var(--tx2);cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid transparent;user-select:none;transition:all .15s}
+.li:hover{background:var(--surf2)}
+.li.off{opacity:.3}
+.ld{width:14px;height:3px;border-radius:1px;flex-shrink:0}
+
+/* ANIM */
+.anim-wrap{background:#0b1622;border-radius:0 0 var(--r2) var(--r2);overflow:hidden}
+#anim-cv{width:100%;height:180px;display:block}
+.anim-vals{display:flex;flex-wrap:wrap;gap:.6rem;padding:.4rem .78rem;background:#0b1622;border-top:1px solid #182840;font-family:var(--mono);font-size:.58rem;color:#2e5570}
+
+/* MODAL */
+.mov{position:fixed;inset:0;background:rgba(10,20,35,.52);backdrop-filter:blur(5px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s}
+.mov.show{opacity:1;pointer-events:all}
+.mbox{background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--r3);box-shadow:var(--sh3);padding:1.7rem;max-width:420px;width:92%;transform:translateY(14px) scale(.97);transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .22s}
+.mov.show .mbox{transform:translateY(0) scale(1)}
+.mico{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:.9rem;font-size:1.15rem}
+.merr{background:var(--red-bg);border:1px solid var(--red-bdr)}
+.mwrn{background:var(--amb-bg);border:1px solid var(--amb-bdr)}
+.mok{background:var(--grn-bg);border:1px solid var(--grn-bdr)}
+.minf{background:var(--blue-bg);border:1px solid var(--blue-bdr)}
+.mtit{font-weight:600;font-size:.9rem;color:var(--tx1);margin-bottom:.45rem}
+.mmsg{font-size:.78rem;color:var(--tx2);line-height:1.65;margin-bottom:1.2rem;white-space:pre-wrap}
+.mclose{width:100%;padding:.5rem;background:var(--surf2);border:1px solid var(--bdr2);border-radius:var(--r);font-size:.74rem;font-weight:500;color:var(--tx2);cursor:pointer;font-family:var(--sans);transition:all .15s}
+.mclose:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* FEEDBACK */
+#fb-panel{position:fixed;bottom:0;right:1.2rem;width:360px;z-index:500;background:var(--surf);border:1px solid var(--bdr2);border-bottom:none;border-radius:var(--r2) var(--r2) 0 0;box-shadow:var(--sh3);transform:translateY(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);display:none}
+#fb-panel.open{transform:translateY(0);display:block}
+.fb-hd{display:flex;align-items:center;justify-content:space-between;padding:.62rem .95rem;border-bottom:1px solid var(--bdr);cursor:pointer}
+.fb-tit{font-weight:600;font-size:.78rem;color:var(--tx1)}
+.fb-body{padding:.9rem;max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:.65rem}
+.flbl{font-family:var(--mono);font-size:.6rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.28rem;display:block}
+.finp,.ftxt,.fsel{width:100%;background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--tx1);font-family:var(--sans);font-size:.8rem;padding:.42rem .62rem;outline:none;transition:border-color .15s}
+.finp:focus,.ftxt:focus,.fsel:focus{border-color:var(--blue)}
+.ftxt{min-height:75px;resize:vertical}
+.stars{display:flex;gap:.18rem}
+.star{font-size:1.2rem;cursor:pointer;color:var(--bdr2);background:none;border:none;transition:color .15s}
+.star.on{color:#f59e0b}
+.btn-sub{padding:.46rem 1rem;background:var(--blue);color:#fff;border:none;border-radius:var(--r);font-size:.74rem;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all .15s}
+.btn-sub:hover{background:var(--blue2)}
+
+/* BOTTOM BAR */
+.bbar{position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:1px solid var(--bdr);padding:0 1.25rem;height:38px;display:flex;align-items:center;justify-content:space-between;z-index:100}
+.binfo{font-family:var(--mono);font-size:.57rem;color:var(--tx3)}
+.bfb{font-size:.68rem;color:var(--blue);background:none;border:none;cursor:pointer;font-family:var(--sans);font-weight:500;display:flex;align-items:center;gap:.3rem}
+.bfb:hover{opacity:.7}
+
+.tbar{display:flex;align-items:center;gap:.42rem;flex-wrap:wrap}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+
+@media(max-width:600px){nav{padding:0 .75rem}.brand-div,.brand-desc,.brand-quote,.pill{display:none}.wrap{padding:.75rem .75rem 4.5rem}.grid2{gap:.75rem}.ptbl{font-size:.7rem}}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="spl-emblem">
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="4" width="92" height="92" rx="6" stroke="#0d2035" stroke-width="1.5"/>
+      <rect x="6" y="6" width="88" height="88" rx="5" stroke="#162840" stroke-width="1"/>
+      <line x1="28" y1="10" x2="28" y2="84" stroke="#0f1e2e" stroke-width=".8"/>
+      <line x1="50" y1="10" x2="50" y2="84" stroke="#0f1e2e" stroke-width=".8"/>
+      <line x1="72" y1="10" x2="72" y2="84" stroke="#0f1e2e" stroke-width=".8"/>
+      <line x1="10" y1="28" x2="84" y2="28" stroke="#0f1e2e" stroke-width=".8"/>
+      <line x1="10" y1="50" x2="84" y2="50" stroke="#0f1e2e" stroke-width=".8"/>
+      <line x1="10" y1="68" x2="84" y2="68" stroke="#0f1e2e" stroke-width=".8"/>
+      <line x1="14" y1="84" x2="84" y2="84" stroke="#1a3550" stroke-width="1.2"/>
+      <line x1="14" y1="10" x2="14" y2="84" stroke="#1a3550" stroke-width="1.2"/>
+      <path d="M14 74 Q32 64 60 52 Q70 47 84 36" stroke="#163050" stroke-width=".9" fill="none" stroke-dasharray="3,2.5"/>
+      <path d="M14 64 Q30 52 58 40 Q68 34 84 24" stroke="#163050" stroke-width=".9" fill="none" stroke-dasharray="3,2.5"/>
+      <path d="M24 84 Q36 68 56 54 Q66 48 80 36" stroke="#163050" stroke-width=".9" fill="none" stroke-dasharray="3,2.5"/>
+      <path class="curve-path" d="M14 84 Q22 74 34 60 Q46 46 60 34 Q68 28 84 18" stroke="#2568c4" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <circle class="state-pt" cx="46" cy="52" r="6" fill="rgba(37,104,196,.15)" stroke="#2568c4" stroke-width="1"/>
+      <circle class="state-pt" cx="46" cy="52" r="3.5" fill="#2568c4"/>
+      <line class="state-pt" x1="46" y1="52" x2="46" y2="84" stroke="#2568c4" stroke-width=".9" stroke-dasharray="2,2" opacity=".4"/>
+      <line class="state-pt" x1="14" y1="52" x2="46" y2="52" stroke="#2568c4" stroke-width=".9" stroke-dasharray="2,2" opacity=".4"/>
+    </svg>
+  </div>
+  <div>
+    <div class="spl-name">PSYCHRO-X ENGINE</div>
+    <div class="spl-sub">ASHRAE 2021 · Intelligent Air Property Calculator</div>
+    <div class="spl-tag">Precision HVAC &amp; Thermodynamic Analysis</div>
+  </div>
+  <div class="spl-bar"><div class="spl-fill"></div></div>
+  <div class="spl-log" id="spl-log">Initialising ASHRAE 2021 engine...</div>
+</div>
+
+<!-- APP -->
+<div id="app">
+<nav>
+  <div class="nav-brand">
+    <div class="brand-ico">
+      <svg viewBox="0 0 20 20" fill="none">
+        <path d="M2 17 Q5 11 9 8 Q12 5.5 17 2" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="2" y1="17" x2="18" y2="17" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
+        <line x1="2" y1="2" x2="2" y2="17" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
+        <path d="M4 14 Q7 10 12 8 Q14 7.2 17 5" stroke="rgba(255,255,255,.35)" stroke-width=".9" stroke-dasharray="2,1.5"/>
+        <circle cx="10" cy="9.5" r="2.2" fill="white" opacity=".95"/>
+        <circle cx="10" cy="9.5" r="3.8" stroke="rgba(255,255,255,.3)" stroke-width="1" fill="none"/>
+      </svg>
+    </div>
+    <div>
+      <div style="display:flex;align-items:center">
+        <span class="brand-name">PSYCHRO-X</span>
+        <span class="brand-div">|</span>
+        <span class="brand-desc">Air Properties Calculator</span>
+      </div>
+      <div class="brand-quote">"HVAC is the quiet science that turns air into comfort, health, and control."</div>
+    </div>
+  </div>
+  <div class="nav-pills">
+    <span class="pill pill-b">ASHRAE 2021</span>
+    <span class="pill pill-g">±5% Accuracy</span>
+  </div>
+</nav>
+
+<div class="wrap">
+<div class="grid2">
+
+  <!-- LEFT -->
+  <div style="display:flex;flex-direction:column;gap:.95rem">
+
+    <!-- INPUT CARD -->
+    <div class="card" id="icard">
+      <div class="ch">
+        <div class="ct">
+          <div class="ci"><svg viewBox="0 0 10 10"><path d="M5 1v8M1 5h8"/></svg></div>
+          Input Parameters
+        </div>
+        <div class="utog" id="cu">
+          <button class="ub on" onclick="setCalcU('SI',this)">SI</button>
+          <button class="ub" onclick="setCalcU('IP',this)">IP</button>
+        </div>
+      </div>
+      <div class="cb">
+        <div class="sec">Atmospheric Condition</div>
+
+        <!-- Altitude — LED id="la", unit id="ua" -->
+        <div class="fr">
+          <span class="led" id="la"></span>
+          <span class="fn">Altitude <span class="fsym">(Alt)</span></span>
+          <div class="fw" id="wa">
+            <input class="fi" id="fa" type="text" inputmode="decimal" placeholder="0" value="0" oninput="onAlt(this.value)">
+            <div class="fu" id="ua">m</div>
+          </div>
+        </div>
+
+        <!-- Pressure — LED id="lp", unit id="uP" (capital P — matches setCalcU lookup 'u'+'P') -->
+        <div class="fr">
+          <span class="led" id="lp"></span>
+          <span class="fn">Barometric Pressure <span class="fsym">(P)</span></span>
+          <div class="fw" id="wp">
+            <input class="fi" id="fp" type="text" inputmode="decimal" placeholder="101.325" value="101.325" oninput="onP(this.value)">
+            <div class="fu" id="uP">kPa</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sec">Air Properties <span style="font-weight:400;font-size:.56rem;margin-left:.3rem">— enter any two</span></div>
+
+        <!-- DBT — LED id="l-DBT", unit id="u-DBT" -->
+        <div class="fr">
+          <span class="led" id="l-DBT"></span>
+          <span class="fn">Dry Bulb Temp <span class="fsym">(T<sub>db</sub>)</span></span>
+          <div class="fw" id="w-DBT">
+            <input class="fi" id="f-DBT" type="text" inputmode="decimal" placeholder="—" oninput="onProp('DBT',this.value)">
+            <div class="fu" id="u-DBT">°C</div>
+          </div>
+        </div>
+
+        <!-- WBT -->
+        <div class="fr">
+          <span class="led" id="l-WBT"></span>
+          <span class="fn">Wet Bulb Temp <span class="fsym">(T<sub>wb</sub>)</span></span>
+          <div class="fw" id="w-WBT">
+            <input class="fi" id="f-WBT" type="text" inputmode="decimal" placeholder="—" oninput="onProp('WBT',this.value)">
+            <div class="fu" id="u-WBT">°C</div>
+          </div>
+        </div>
+
+        <!-- RH -->
+        <div class="fr">
+          <span class="led" id="l-RH"></span>
+          <span class="fn">Relative Humidity <span class="fsym">(φ)</span></span>
+          <div class="fw" id="w-RH">
+            <input class="fi" id="f-RH" type="text" inputmode="decimal" placeholder="—" oninput="onProp('RH',this.value)">
+            <div class="fu">%</div>
+          </div>
+        </div>
+
+        <!-- HR -->
+        <div class="fr">
+          <span class="led" id="l-HR"></span>
+          <span class="fn">Humidity Ratio <span class="fsym">(W)</span></span>
+          <div class="fw" id="w-HR">
+            <input class="fi" id="f-HR" type="text" inputmode="decimal" placeholder="0.00000" oninput="onProp('HR',this.value)">
+            <div class="fu" id="u-HR">kg/kg</div>
+          </div>
+        </div>
+
+        <!-- DP -->
+        <div class="fr">
+          <span class="led" id="l-DP"></span>
+          <span class="fn">Dew Point Temp <span class="fsym">(T<sub>dp</sub>)</span></span>
+          <div class="fw" id="w-DP">
+            <input class="fi" id="f-DP" type="text" inputmode="decimal" placeholder="—" oninput="onProp('DP',this.value)">
+            <div class="fu" id="u-DP">°C</div>
+          </div>
+        </div>
+
+        <!-- Enthalpy -->
+        <div class="fr">
+          <span class="led" id="l-H"></span>
+          <span class="fn">Specific Enthalpy <span class="fsym">(h)</span></span>
+          <div class="fw" id="w-H">
+            <input class="fi" id="f-H" type="text" inputmode="decimal" placeholder="—" oninput="onProp('H',this.value)">
+            <div class="fu" id="u-H">kJ/kg</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <button class="btn-main" onclick="calculate()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M2 6h8M6 2l4 4-4 4"/></svg>
+          Calculate All Properties
+        </button>
+        <button class="btn-rst" onclick="resetAll()">↺ Reset All Fields</button>
+      </div>
+      <div class="sbar" id="sbar">
+        <span class="led" id="sl" style="width:6px;height:6px"></span>
+        <span id="stxt">Enter Pressure / Altitude + any two air properties.</span>
+      </div>
+    </div>
+
+    <!-- ANIM CARD -->
+    <div class="card">
+      <div class="ch">
+        <div class="ct">
+          <div class="ci"><svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.5" stroke-width="1.5"/><path d="M5 1.5v7M1.5 5h7" opacity=".4"/></svg></div>
+          Atmospheric State Visualiser
+        </div>
+        <button class="bsm" id="av-btn" onclick="toggleAnimVis()">Hide</button>
+      </div>
+      <div id="av-body">
+        <div class="anim-wrap"><canvas id="anim-cv"></canvas></div>
+        <div class="anim-vals" id="av-vals">
+          <span id="av-alt">Alt: 0 m</span>
+          <span id="av-p">P: 101.325 kPa</span>
+          <span id="av-t">T<sub>db</sub>: —</span>
+          <span id="av-rh">φ: —</span>
+          <span id="av-w">W: — g/kg</span>
+          <span id="av-h">h: — kJ/kg</span>
+          <span id="av-dp">T<sub>dp</sub>: —</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- RIGHT -->
+  <div style="display:flex;flex-direction:column;gap:.95rem">
+
+    <!-- RESULTS TABLE -->
+    <div class="card">
+      <div class="ch">
+        <div class="ct">
+          <div class="ci"><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1" stroke-width="1.5"/><path d="M1 3.5h8M3.5 1v8" stroke-width="1.1"/></svg></div>
+          Psychrometric Properties
+        </div>
+        <div class="tbar">
+          <button class="bsm" id="fml-btn" onclick="toggleFml()">Show Formulas</button>
+          <button class="bsm" onclick="doPDF()">↓ PDF</button>
+          <button class="bsm" onclick="doCSV()">↓ CSV</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="ptbl" id="rtbl">
+          <thead>
+            <tr>
+              <th style="min-width:155px">Property</th>
+              <th class="tr" style="min-width:130px">SI Value</th>
+              <th class="tr" style="min-width:130px">IP Value</th>
+              <th class="hid" id="th-f" style="min-width:200px">Formula</th>
+              <th class="hid" id="th-r" style="min-width:190px">ASHRAE Reference</th>
+            </tr>
+          </thead>
+          <tbody id="rtbl-body"></tbody>
+        </table>
+      </div>
+      <div style="padding:.42rem .78rem;background:var(--surf2);border-top:1px solid var(--bdr);border-radius:0 0 var(--r2) var(--r2);font-family:var(--mono);font-size:.57rem;color:var(--tx3);display:flex;flex-wrap:wrap;gap:.7rem;align-items:center">
+        <span>Highlighted: <b style="color:var(--grn)">Green</b> = user input &nbsp;·&nbsp; <b style="color:var(--blue)">Blue</b> = calculated</span>
+        <span style="margin-left:auto">ASHRAE Fundamentals 2021 · Created by JANA</span>
+      </div>
+    </div>
+
+    <!-- CHART -->
+    <div class="card">
+      <div class="ch">
+        <div class="ct">
+          <div class="ci"><svg viewBox="0 0 10 10"><path d="M1 9 Q3 5 5.5 4 Q7.5 3 9 1" stroke-width="2" stroke-linecap="round"/></svg></div>
+          Live Psychrometric Chart
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <div class="utog" id="chart-unit-tog">
+            <button class="ub on" onclick="setChartUnit('SI',this)">SI</button>
+            <button class="ub" onclick="setChartUnit('IP',this)">IP</button>
+          </div>
+          <button class="bsm" id="vc-btn" onclick="toggleChart()">Hide</button>
+        </div>
+      </div>
+      <div id="vc-body">
+        <div style="padding:.5rem .7rem .6rem"><canvas id="chart-cv" height="380"></canvas></div>
+        <div class="leg" id="leg1">
+          <span class="li" data-k="sat" onclick="tlay(this)"><span class="ld" style="background:#1e5fa8"></span>Saturation</span>
+          <span class="li" data-k="rh"  onclick="tlay(this)"><span class="ld" style="height:2px;background:transparent;border-top:2px dashed #4a90d9"></span>RH Lines</span>
+          <span class="li" data-k="enth" onclick="tlay(this)"><span class="ld" style="height:2px;background:transparent;border-top:2px dashed #7a5910"></span>Enthalpy</span>
+          <span class="li" data-k="wbt" onclick="tlay(this)"><span class="ld" style="height:2px;background:transparent;border-top:2px dashed #6040a0"></span>WBT Lines</span>
+          <span class="li" data-k="hrg" onclick="tlay(this)"><span class="ld" style="height:2px;background:transparent;border-top:2px dotted #2a7a40"></span>W Grid</span>
+          <span class="li" data-k="dp"  onclick="tlay(this)"><span class="ld" style="height:2px;background:transparent;border-top:2px dotted #a04040"></span>DP Lines</span>
+          <span class="li" data-k="pt"  onclick="tlay(this)"><span class="ld" style="background:#c02020;border-radius:50%;width:8px;height:8px"></span>State Point</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /right -->
+</div><!-- /grid2 -->
+</div><!-- /wrap -->
+
+<!-- BOTTOM BAR -->
+<div class="bbar">
+  <div class="binfo">ASHRAE Fundamentals 2021 &nbsp;·&nbsp; Created by JANA</div>
+  <button class="bfb" onclick="openFB()">💬 Feedback</button>
+</div>
+
+<!-- FEEDBACK -->
+<div id="fb-panel">
+  <div class="fb-hd" onclick="openFB()">
+    <span class="fb-tit">Feedback &amp; Suggestions</span>
+    <span style="color:var(--tx3);font-size:.8rem">✕</span>
+  </div>
+  <div class="fb-body">
+    <div><label class="flbl">Rating</label>
+      <div class="stars" id="stars">
+        <button class="star" onclick="setR(1)">★</button>
+        <button class="star" onclick="setR(2)">★</button>
+        <button class="star" onclick="setR(3)">★</button>
+        <button class="star" onclick="setR(4)">★</button>
+        <button class="star" onclick="setR(5)">★</button>
+      </div>
+    </div>
+    <div><label class="flbl">Category</label>
+      <select class="fsel" id="fb-cat">
+        <option>Formula Accuracy</option><option>UI / Usability</option>
+        <option>Feature Request</option><option>Bug Report</option><option>General</option>
+      </select>
+    </div>
+    <div><label class="flbl">Name (optional)</label>
+      <input class="finp" id="fb-name" placeholder="Your name / organisation">
+    </div>
+    <div><label class="flbl">Message</label>
+      <textarea class="ftxt" id="fb-msg" placeholder="Describe your feedback..."></textarea>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <button class="btn-sub" onclick="submitFB()">Submit</button>
+      <span id="fb-ok" style="font-family:var(--mono);font-size:.6rem;color:var(--grn)"></span>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="mov" id="mov" onclick="cModal(event)">
+  <div class="mbox">
+    <div class="mico" id="mico"></div>
+    <div class="mtit" id="mtit"></div>
+    <div class="mmsg" id="mmsg"></div>
+    <button class="mclose" onclick="cModal()">Acknowledge</button>
+  </div>
+</div>
+
+<script>
+// ══ SPLASH ══
+const SMSGS=['Initialising ASHRAE 2021 engine...','Loading Eq.5/Eq.6 Pws constants...','Compiling 14 calculation modules...','System ready.'];
+let smi=0;
+const slEl=document.getElementById('spl-log');
+const sTick=setInterval(()=>{smi++;if(smi>=SMSGS.length){clearInterval(sTick);return;}slEl.textContent=SMSGS[smi];},620);
+
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    document.getElementById('splash').classList.add('fade-out');
+    const app=document.getElementById('app');
+    app.style.display='block';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>app.classList.add('visible')));
+    setTimeout(()=>document.getElementById('splash').style.display='none',800);
+    initTable();
+    startAnim();
+    drawChart(null,'chart-cv');
+  },2900);
+});
+
+// ══ ASHRAE 2021 Chapter 1 — Exact Formulas ══
+
+// Eq.5 (T≥0°C) / Eq.6 (T<0°C) — Saturation pressure kPa
+function Fn_Pws(TC){
+  const T=TC+273.15;
+  if(TC>=0){
+    const n1=1167.0521452767,n2=-724213.16703206,n3=-17.073846940092,n4=12020.82470247,
+          n5=-3232555.0322333,n6=14.91510861353,n7=-4823.2657361591,n8=405113.40542057,
+          n9=-0.23855557567849,n10=650.17534844798;
+    const th=T+n9/(T-n10);
+    const A=th*th+n1*th+n2, B=n3*th*th+n4*th+n5, C=n6*th*th+n7*th+n8;
+    return Math.pow(2*C/(-B+Math.sqrt(B*B-4*A*C)),4)*1000;
+  } else {
+    const a1=-21.2144006,a2=27.3203819,a3=-6.1059813,b1=0.00333333333,b2=1.20666667,b3=1.70333333;
+    const th=T/273.16;
+    return 0.611657*Math.exp((1/th)*(a1*Math.pow(th,b1)+a2*Math.pow(th,b2)+a3*Math.pow(th,b3)));
+  }
+}
+
+// Eq.22 — Saturation humidity ratio
+function Fn_Ws(TC,P){const Pws=Fn_Pws(TC);return 0.621945*Pws/(P-Pws);}
+
+// Eq.35/37 — W from DBT+WBT+P
+function Fn_HR_WBT(DBT,WBT,P){
+  const Ws=Fn_Ws(WBT,P);
+  if(WBT>=0)return((2501-2.326*WBT)*Ws-1.006*(DBT-WBT))/(2501+1.86*DBT-4.186*WBT);
+  else      return((2830-0.24 *WBT)*Ws-1.006*(DBT-WBT))/(2830+1.86*DBT-2.1  *WBT);
+}
+
+// Eq.20 — W from Pw+P
+function Fn_W_Pw(Pw,P){return 0.621945*Pw/(P-Pw);}
+
+// Eq.21 — Pw from W+P
+function Fn_Pw_W(W,P){return W*P/(0.621945+W);}
+
+// Eq.12 — Pw from RH+Pws
+function Fn_Pw_RH(RH,Pws){return(RH/100)*Pws;}
+
+// Eq.12 — RH from Pw+Pws
+function Fn_RH(Pw,Pws){return(Pw/Pws)*100;}
+
+// Eq.32 — h from DBT+W
+function Fn_H(DBT,W){return 1.006*DBT+W*(2501+1.86*DBT);}
+
+// Eq.32 rearranged — W from h+DBT
+function Fn_W_H(H,DBT){return(H-1.006*DBT)/(2501+1.86*DBT);}
+
+// Eq.39-44/45 — Dew Point from Pw
+function Fn_DP(Pw){
+  if(Pw>=0.6112){
+    const n1=1167.0521452767,n2=-724213.16703206,n3=-17.073846940092,n4=12020.82470247,
+          n5=-3232555.0322333,n6=14.91510861353,n7=-4823.2657361591,n8=405113.40542057,
+          n9=-0.23855557567849,n10=650.17534844798;
+    const B4=Math.pow(Pw/1000,.25);
+    const E=B4*B4+n3*B4+n6, F=n1*B4*B4+n4*B4+n7, G=n2*B4*B4+n5*B4+n8;
+    const D=2*G/(-F-Math.sqrt(F*F-4*E*G));
+    return 0.5*(n10+D-Math.sqrt(Math.pow(n10+D,2)-4*(n9+n10*D)))-273.15;
+  } else {
+    const d0=212.573393,d1=-11.118292,d2=0.101400,d3=2.1296e-6;
+    const e0=1,e1=-8.6895e-2,e2=2.2952e-3,e3=-1.7489e-5;
+    const pi=Math.log(Pw*1000);
+    return(d0+d1*pi+d2*pi*pi+d3*Math.pow(pi,3))/(e0+e1*pi+e2*pi*pi+e3*Math.pow(pi,3))-273.15;
+  }
+}
+
+// P from Altitude — ASHRAE 2021 Ch.1
+function Fn_P_Alt(alt){return 101.325*Math.pow(1-2.25577e-5*alt,5.25588);}
+
+// Eq.38 — DBT from WBT+DP+P
+function Fn_DBT_WBT_DP(WBT,DP,P){
+  const A=0.00066*(1+0.00115*WBT);
+  return WBT+(Fn_Pws(WBT)-Fn_Pws(DP))/(A*P);
+}
+
+// Bisect DBT from WBT+RH+P
+function Fn_DBT_WBT_RH(WBT,RH,P){
+  const A=0.00066*(1+0.00115*WBT), Pws_w=Fn_Pws(WBT);
+  let lo=WBT,hi=70;
+  for(let i=0;i<70;i++){
+    const mid=(lo+hi)/2, Pws_m=Fn_Pws(mid);
+    const LHS=(RH/100)*Pws_m, RHS=Pws_w-A*P*(mid-WBT);
+    if(LHS>RHS)hi=mid;else lo=mid;
+    if(Math.abs(hi-lo)<1e-5)break;
+  }
+  return+(((lo+hi)/2).toFixed(4));
+}
+
+// Bisect DBT from RH+DP
+function Fn_DBT_RH_DP(RH,DP){
+  const Pw=Fn_Pws(DP), target=Pw/(RH/100);
+  let lo=-10,hi=70;
+  for(let i=0;i<70;i++){
+    const mid=(lo+hi)/2;
+    if(Fn_Pws(mid)<target)lo=mid;else hi=mid;
+    if(Math.abs(hi-lo)<1e-5)break;
+  }
+  return+(((lo+hi)/2).toFixed(4));
+}
+
+// Iterate DBT from RH+H+P
+function Fn_DBT_RH_H(RH,H,P){
+  for(let T=-10;T<=70;T+=0.05){
+    const Pws_T=Fn_Pws(T), Pw=(RH/100)*Pws_T;
+    if(Pw<=0||Pw>=P)continue;
+    const W=Fn_W_Pw(Pw,P);
+    if(Math.abs(Fn_H(T,W)-H)<0.12)return+(T.toFixed(3));
+  }
+  return null;
+}
+
+// Iterate DBT from WBT+H+P
+function Fn_DBT_WBT_H(WBT,H,P){
+  for(let T=WBT;T<=70;T+=0.04){
+    const W=Fn_HR_WBT(T,WBT,P);
+    if(W<0)continue;
+    if(Math.abs(Fn_H(T,W)-H)<0.1)return+(T.toFixed(3));
+  }
+  return null;
+}
+
+// W from WBT+H+P (Eq.35 rearranged)
+function Fn_W_WBT_H(WBT,H,P){
+  const Ws=Fn_Ws(WBT,P);
+  if(WBT>0)  return(H-1.006*WBT-Ws*(2501-2.326*WBT))/(4.186*WBT);
+  else if(WBT<0)return(H-1.006*WBT-Ws*(2830-0.24*WBT))/(-333.4+2.1*WBT);
+  return(H-Ws*2501)/4.186;
+}
+
+// WBT bisection from DBT+W+P (Eq.35)
+function Fn_WBT(DBT,W,P){
+  let lo=-50,hi=DBT;
+  for(let i=0;i<70;i++){
+    const m=(lo+hi)/2, Ws=Fn_Ws(m,P);
+    const Wc=m>=0?((2501-2.326*m)*Ws-1.006*(DBT-m))/(2501+1.86*DBT-4.186*m)
+                :((2830-0.24*m)*Ws-1.006*(DBT-m))/(2830+1.86*DBT-2.1*m);
+    if(Wc>W)hi=m;else lo=m;
+    if(Math.abs(hi-lo)<1e-5)break;
+  }
+  return+(((lo+hi)/2).toFixed(4));
+}
+
+// ══ FORMULAS / REFERENCES ══
+const M={
+  P:   {f:'P = 101.325 × (1 − 2.25577×10⁻⁵ × Alt)^5.25588',r:'ASHRAE Fundamentals 2021, Ch.1 (P.No 1.1)'},
+  Pws: {f:'Multiple IAPWS constants (19 for water, 6 for ice)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:5 (water ≥0°C) / Eq:6 (ice <0°C)'},
+  W35: {f:'W = [(2501−2.326·t*)Ws* − 1.006(t−t*)] / (2501+1.86t−4.186t*)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:35 (T≥0°C)'},
+  W37: {f:'W = [(2830−0.24·t*)Ws* − 1.006(t−t*)] / (2830+1.86t−2.1t*)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:37 (T<0°C)'},
+  W20: {f:'W = 0.621945 × Pw / (P − Pw)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:20'},
+  Pw21:{f:'Pw = W × P / (0.621945 + W)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:21'},
+  Pw12:{f:'Pw = (RH/100) × Pws(T)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:12'},
+  RH12:{f:'RH = (Pw / Pws) × 100',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:12'},
+  H32: {f:'h = 1.006·T + W·(2501 + 1.86·T)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:32'},
+  H32r:{f:'W = (h − 1.006·T) / (2501 + 1.86·T)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:32 (rearranged)'},
+  DP:  {f:'Multiple constants (10 for water / 4 for ice)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:39–44 (water) / Eq:45 (ice)'},
+  WBT: {f:'Bisection: W=[(2501−2.381·t*)Ws−1.006(t−t*)]/(2501+1.86t−4.186t*)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:35'},
+  D15: {f:'Pws(T) = Pw / RH — iterate for T',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:15'},
+  D38: {f:'T = Twb + [Pws(Twb) − Pws(Tdp)] / (A × P)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:38'},
+  WH35:{f:'W = (h−1.006·t*−Ws*·(2501−2.326·t*)) / (4.186·t*)',r:'ASHRAE Fundamentals 2021, Ch.1 Eq:35 (rearranged)'},
+};
+
+// ══ UNITS ══
+const SIu={DBT:'°C',WBT:'°C',RH:'%',HR:'kg/kg',DP:'°C',H:'kJ/kg',P:'kPa',Pw:'kPa',PwsD:'kPa',PwsW:'kPa'};
+const IPu={DBT:'°F',WBT:'°F',RH:'%',HR:'lb/lb',DP:'°F',H:'BTU/lb',P:'psi',Pw:'psi',PwsD:'psi',PwsW:'psi'};
+
+// ══ STATE ══
+const PROPS=['DBT','WBT','RH','HR','DP','H'];
+let userIn={};
+let calcU='SI';
+let showFml=false;
+let animVis=true,chartVis=true;
+let lastR=null;
+let pressureSource='default';
+let lays={sat:true,rh:true,enth:true,wbt:true,hrg:true,dp:true,pt:true};
+let fbOpen=false,fbRat=0;
+let chartUnit='SI';
+
+// ══ UNIT CONVERSION ══
+function toSI_input(id,v){
+  // Converts display value to SI for storage
+  if(calcU==='SI')return v;
+  if(['DBT','WBT','DP'].includes(id))return(v-32)*5/9;
+  if(id==='P')return v*6.89476;
+  if(id==='H')return v*2.326;
+  return v;
+}
+function fromSI_display(id,v){
+  // Converts SI stored value to display value in current calcU
+  if(calcU==='SI')return v;
+  if(['DBT','WBT','DP'].includes(id))return v*9/5+32;
+  if(id==='P')return v/6.89476;
+  if(id==='H')return v/2.326;
+  return v;
+}
+
+// FIX: toIP() — converts an SI value to the IP equivalent for the table IP column
+// RH stays the same (%), HR stays the same numeric value (kg/kg = lb/lb)
+function toIP(id,v){
+  if(['DBT','WBT','DP'].includes(id))return v*9/5+32;
+  if(['P','Pw','PwsD','PwsW'].includes(id))return v/6.89476;
+  if(id==='H')return v/2.326;
+  return v; // RH (%), HR (lb/lb = same number)
+}
+
+function fmtV(v,id,dp){
+  if(v==null||isNaN(v))return'—';
+  if(id==='HR')return v.toFixed(5);
+  if(['P','Pw','PwsD','PwsW'].includes(id))return v.toFixed(3);
+  if(id==='RH')return v.toFixed(1);
+  return v.toFixed(dp??2);
+}
+
+// FIX: isPartialDecimal — returns true only for genuinely incomplete input
+// Handles 0. and -0. and -  so user can type decimal freely
+function isPartialDecimal(raw){
+  const v=String(raw).trim();
+  // incomplete: just dot, just minus, minus-dot, or digit(s) then dot (still typing decimal)
+  return v==='.'||v==='-'||v==='-.'||/^-?\d+\.$/.test(v)||/^-?\d*\.$/.test(v);
+}
+
+// ══ INPUT HANDLERS ══
+function onProp(id,raw){
+  if(raw===''||raw===null){
+    delete userIn[id];setFStyle(id,'empty');setLed(id,'off');clearCalcOuts();updateSt();return;
+  }
+  if(isPartialDecimal(raw)){
+    setFStyle(id,'user');setLed(id,'on');clearCalcOuts();updateSt();return;
+  }
+  const v=parseFloat(raw);
+  if(isNaN(v))return;
+  const si=toSI_input(id,v);
+  userIn[id]=si;
+  // max 2 user inputs — drop oldest
+  const keys=Object.keys(userIn);
+  while(keys.length>2){
+    const drop=keys.find(k=>k!==id);
+    if(!drop)break;
+    delete userIn[drop];
+    document.getElementById('f-'+drop).value='';
+    setFStyle(drop,'empty');setLed(drop,'off');
+    keys.splice(keys.indexOf(drop),1);
+  }
+  setFStyle(id,'user');setLed(id,'on');clearCalcOuts();updateSt();
+}
+
+// FIX: onAlt — LED states:
+//   alt = 0 (default) → both LEDs gray, pressure field normal
+//   alt ≠ 0           → altitude LED green, pressure LED amber (derived), pressure field blue
+function onAlt(raw){
+  if(isPartialDecimal(raw))return;
+  const altInput=parseFloat(raw);
+  const altVal=(isNaN(altInput)||!isFinite(altInput))?0:altInput;
+  const alt=calcU==='IP'?altVal/3.28084:altVal;
+  const P=Fn_P_Alt(alt);
+  document.getElementById('fp').value=fmtV(calcU==='IP'?P/6.89476:P,'P');
+  if(alt!==0){
+    pressureSource='altitude';
+    setLed('a','on');        // Green: altitude actively set
+    setLed('p','calc');      // Amber: pressure derived from altitude
+    setFStyle2('wp','calc');
+  } else {
+    pressureSource='default';
+    setLed('a','off');       // Gray: default (0)
+    setLed('p','off');       // Gray: default pressure
+    setFStyle2('wp','empty');
+  }
+  updAnim({alt:altVal,P,DBT:null,WBT:null,RH:null,HR:null,DP:null,H:null});
+}
+
+// FIX: onP — LED states:
+//   direct pressure entry → altitude LED gray, pressure LED green
+function onP(raw){
+  document.getElementById('fa').value='0';
+  if(raw===''||raw===null){
+    pressureSource='default';
+    setLed('a','off');setLed('p','off');
+    setFStyle2('wp','empty');setFStyle2('wa','empty');return;
+  }
+  pressureSource='user';
+  setLed('a','off');       // Altitude LED off
+  setLed('p','on');        // Green: pressure directly entered
+  setFStyle2('wp','user');
+  setFStyle2('wa','empty');
+}
+
+function getP(){
+  const p=parseFloat(document.getElementById('fp').value);
+  if(isNaN(p))return 101.325;
+  return calcU==='IP'?p*6.89476:p;
+}
+
+// FIX: setCalcU — unit labels now correctly updated
+//   Pressure unit uses id="uP" (capital P) — matches getElementById('u'+'P')
+//   Altitude unit uses id="ua" — matches getElementById('ua')
+//   Air prop units use id="u-DBT", "u-WBT", etc.
+function setCalcU(u,btn){
+  const currentP=getP();
+  const altRaw=parseFloat(document.getElementById('fa').value)||0;
+  const currentAlt=calcU==='IP'?altRaw/3.28084:altRaw;
+  calcU=u;
+  document.querySelectorAll('#cu .ub').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  // Update air property units
+  const tUnit=u==='SI'?'°C':'°F';
+  ['DBT','WBT','DP'].forEach(id=>{const el=document.getElementById('u-'+id);if(el)el.textContent=tUnit;});
+  const hrEl=document.getElementById('u-HR');if(hrEl)hrEl.textContent=u==='SI'?'kg/kg':'lb/lb';
+  const hEl=document.getElementById('u-H');if(hEl)hEl.textContent=u==='SI'?'kJ/kg':'BTU/lb';
+  // FIX: Pressure unit — id="uP" (capital P)
+  const upEl=document.getElementById('uP');if(upEl)upEl.textContent=u==='SI'?'kPa':'psi';
+  // Altitude unit — id="ua"
+  const uaEl=document.getElementById('ua');if(uaEl)uaEl.textContent=u==='SI'?'m':'ft';
+  // Re-display pressure and altitude in new unit
+  document.getElementById('fp').value=fmtV(u==='SI'?currentP:currentP/6.89476,'P');
+  document.getElementById('fa').value=(u==='IP'?currentAlt*3.28084:currentAlt).toFixed(1);
+  // Re-display user-entered props in new unit
+  for(const id of PROPS){
+    const si=userIn[id];
+    if(si!=null)document.getElementById('f-'+id).value=fmtV(fromSI_display(id,si),id);
+  }
+}
+
+function setChartUnit(u,btn){
+  chartUnit=u;
+  (btn.closest('.utog')||document).querySelectorAll('.ub').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  drawChart(lastR,'chart-cv');
+}
+
+// ══ CALCULATE ══
+function calculate(){
+  // Check for non-numeric values left in any input field
+  for(const id of PROPS){
+    const raw=(document.getElementById('f-'+id).value||'').trim();
+    if(raw!==''&&!isPartialDecimal(raw)&&isNaN(parseFloat(raw))){
+      modal('err','Invalid Input',`"${raw}" is not a valid number.\n\nOnly numeric values are allowed in input fields.\n\nAll fields have been reset to default.`);
+      resetAll();return;
+    }
+  }
+  const P=getP();
+  const keys=Object.keys(userIn);
+  if(keys.length<2){updateSt('warn','Need 2 air properties to calculate.');return;}
+  const C=new Set(keys);
+  let DBT=userIn.DBT??null,WBT=userIn.WBT??null,RH=userIn.RH??null;
+  let HR=userIn.HR??null,DP=userIn.DP??null,H=userIn.H??null;
+  let Pw=null,PwsD=null,PwsW=null;
+  let mHR=M.W35,mDBT=null,mWBT=null;
+
+  if(DBT!=null&&WBT!=null&&WBT>DBT){
+    modal('err','Invalid Input','Wet Bulb Temperature cannot exceed Dry Bulb Temperature.\n\nPhysical constraint: WBT ≤ DBT\n\nRef: ASHRAE Fundamentals 2021');
+    return;
+  }
+  if(RH!=null&&(RH<0||RH>100)){
+    modal('err','Invalid Input','Relative Humidity must be between 0% and 100%.');return;
+  }
+  if(DBT!=null&&DBT<-60){
+    modal('err','Out of Range','Dry Bulb Temperature below −60°C is outside ASHRAE valid range.');return;
+  }
+  if(DBT!=null&&DBT>70){
+    modal('err','Out of Range','Dry Bulb Temperature above 70°C is outside normal HVAC range.');return;
+  }
+
+  try{
+    if(C.has('DBT')&&C.has('WBT')){
+      HR=Fn_HR_WBT(DBT,WBT,P);mHR=WBT>=0?M.W35:M.W37;
+    } else if(C.has('DBT')&&C.has('RH')){
+      PwsD=Fn_Pws(DBT);Pw=Fn_Pw_RH(RH,PwsD);HR=Fn_W_Pw(Pw,P);mHR=M.W20;
+    } else if(C.has('DBT')&&C.has('HR')){
+      Pw=Fn_Pw_W(HR,P);
+    } else if(C.has('DBT')&&C.has('DP')){
+      Pw=Fn_Pws(DP);HR=Fn_W_Pw(Pw,P);mHR=M.W20;
+    } else if(C.has('DBT')&&C.has('H')){
+      HR=Fn_W_H(H,DBT);mHR=M.H32r;
+    } else if(C.has('WBT')&&C.has('RH')){
+      DBT=Fn_DBT_WBT_RH(WBT,RH,P);HR=Fn_HR_WBT(DBT,WBT,P);
+      mDBT=M.D15;mHR=WBT>=0?M.W35:M.W37;
+    } else if(C.has('WBT')&&C.has('DP')){
+      DBT=Fn_DBT_WBT_DP(WBT,DP,P);HR=Fn_HR_WBT(DBT,WBT,P);
+      mDBT=M.D38;mHR=WBT>=0?M.W35:M.W37;
+    } else if(C.has('WBT')&&C.has('H')){
+      HR=Fn_W_WBT_H(WBT,H,P);DBT=Fn_DBT_WBT_H(WBT,H,P);
+      mHR=M.WH35;
+      if(DBT==null){modal('err','No Convergence','Cannot solve DBT from WBT + H. Check values.');return;}
+      mDBT={f:M.H32.f+' + '+M.WH35.f,r:'ASHRAE 2021 Eq:32 + Eq:35'};
+    } else if(C.has('RH')&&C.has('DP')){
+      DBT=Fn_DBT_RH_DP(RH,DP);mDBT=M.D15;
+    } else if(C.has('RH')&&C.has('H')){
+      DBT=Fn_DBT_RH_H(RH,H,P);
+      if(DBT==null){modal('err','No Convergence','Cannot solve DBT from RH + H. Check values.');return;}
+      mDBT=M.D15;
+    } else if(C.has('RH')&&C.has('HR')){
+      Pw=Fn_Pw_W(HR,P);PwsD=Pw/(RH/100);
+      let lo=-10,hi=70;
+      for(let i=0;i<70;i++){const m=(lo+hi)/2;if(Fn_Pws(m)<PwsD)lo=m;else hi=m;}
+      DBT=+(((lo+hi)/2).toFixed(4));mDBT=M.D15;
+    } else if(C.has('HR')&&C.has('H')){
+      DBT=(H-2501*HR)/(1.006+1.86*HR);
+      mDBT={f:'T = (h − 2501·W) / (1.006 + 1.86·W)',r:'ASHRAE 2021 Ch.1 Eq:32 (rearranged)'};
+    } else if(C.has('HR')&&C.has('DP')){
+      Pw=Fn_Pws(DP);const WDP=Fn_W_Pw(Pw,P);
+      if(Math.abs(WDP-HR)>0.002){modal('warn','Inconsistency','HR and DP are inconsistent.\n\nPlease check inputs.');return;}
+    } else {
+      modal('warn','Unsupported Combination','This combination does not uniquely define the state.\n\nTry: DBT+WBT, DBT+RH, DBT+HR, DBT+DP, DBT+H,\nWBT+RH, WBT+DP, WBT+H, RH+DP, RH+H, HR+H');return;
+    }
+
+    // Derive remaining
+    if(PwsD==null&&DBT!=null)PwsD=Fn_Pws(DBT);
+    if(PwsW==null&&WBT!=null)PwsW=Fn_Pws(WBT);
+    if(Pw==null&&HR!=null)Pw=Fn_Pw_W(HR,P);
+    if(HR==null&&Pw!=null)HR=Fn_W_Pw(Pw,P);
+    if(RH==null&&Pw!=null&&PwsD!=null)RH=Fn_RH(Pw,PwsD);
+    if(H==null&&DBT!=null&&HR!=null)H=Fn_H(DBT,HR);
+    if(DP==null&&Pw!=null)DP=Fn_DP(Pw);
+    if(WBT==null&&DBT!=null&&HR!=null){WBT=Fn_WBT(DBT,HR,P);mWBT=M.WBT;}
+    if(PwsW==null&&WBT!=null)PwsW=Fn_Pws(WBT);
+
+    if(RH!=null&&RH>100.5){modal('err','Impossible State','RH > 100% — impossible.\n\nCheck input values.');return;}
+    if(HR!=null&&HR<0){modal('err','Impossible State','Humidity Ratio is negative — impossible.\n\nCheck input values.');return;}
+    if(DP!=null&&DBT!=null&&DP>DBT+0.5)
+      modal('warn','Physical Note','Dew Point exceeds DBT — possible input inconsistency.\n\nVerify your input values.');
+
+    const res={P,DBT,WBT,RH,HR,DP,H,Pw,PwsD,PwsW,combo:keys,mHR,mDBT,mWBT};
+    lastR=res;
+
+    for(const id of PROPS){
+      if(!C.has(id)){
+        const v=res[id];
+        if(v!=null){
+          document.getElementById('f-'+id).value=fmtV(fromSI_display(id,v),id);
+          setFStyle(id,'calc');setLed(id,'calc');
+        } else {
+          document.getElementById('f-'+id).value='';setFStyle(id,'empty');setLed(id,'off');
+        }
+      }
+    }
+
+    renderTable(res);
+    drawChart(res,'chart-cv');
+    updAnim({alt:parseFloat(document.getElementById('fa').value)||0,P,DBT,WBT,RH,HR,DP,H});
+    updateSt('ok',`Calculated from [${keys.join(' + ')}] at P = ${P.toFixed(3)} kPa`);
+
+  }catch(e){modal('err','Calculation Error',e.message||'Unexpected error.');}
+}
+
+// ══ RESET ══
+function resetAll(){
+  userIn={};lastR=null;pressureSource='default';
+  for(const id of PROPS){
+    document.getElementById('f-'+id).value='';setFStyle(id,'empty');setLed(id,'off');
+  }
+  document.getElementById('fa').value='0';
+  document.getElementById('fp').value='101.325';
+  // FIX: Both LEDs gray on reset
+  setLed('a','off');setLed('p','off');
+  setFStyle2('wp','empty');setFStyle2('wa','empty');
+  renderTable(null);drawChart(null,'chart-cv');updateSt();
+  updAnim({alt:0,P:101.325,DBT:null,WBT:null,RH:null,HR:null,DP:null,H:null});
+}
+
+function clearCalcOuts(){
+  for(const id of PROPS){
+    if(!(id in userIn)){document.getElementById('f-'+id).value='';setFStyle(id,'empty');setLed(id,'off');}
+  }
+  renderTable(null);drawChart(null,'chart-cv');
+}
+
+// ══ FIELD STYLING ══
+function setFStyle(id,state){
+  const w=document.getElementById('w-'+id), i=document.getElementById('f-'+id);
+  if(!w||!i)return;
+  w.className='fw';i.className='fi';i.readOnly=false;
+  if(state==='user'){w.classList.add('gu');i.classList.add('vg');}
+  else if(state==='calc'){w.classList.add('gc');i.classList.add('vb');i.readOnly=true;}
+}
+function setFStyle2(wid,state){
+  const w=document.getElementById(wid);if(!w)return;
+  w.className='fw';
+  if(state==='user')w.classList.add('gu');
+  else if(state==='calc')w.classList.add('gc');
+}
+function setLed(id,state){
+  const el=document.getElementById('l'+id)||document.getElementById('l-'+id);
+  if(!el)return;
+  el.className='led';
+  if(state==='on')el.classList.add('on');
+  else if(state==='calc')el.classList.add('amb');
+}
+function updateSt(type,msg){
+  const led=document.getElementById('sl'), txt=document.getElementById('stxt');
+  const n=Object.keys(userIn).length;
+  led.className='led';txt.className='';
+  if(!type){
+    if(n===0){txt.textContent='Enter Pressure / Altitude + any two air properties.';return;}
+    if(n===1){led.classList.add('amb');txt.textContent=Object.keys(userIn)[0]+' entered. Enter one more property.';return;}
+  }
+  if(type==='ok'){led.classList.add('on');txt.className='sok';txt.textContent=msg;}
+  else if(type==='warn'){led.classList.add('amb');txt.className='swarn';txt.textContent=msg;}
+  else if(type==='err'){txt.className='serr';txt.textContent=msg;}
+}
+
+// ══ RESULTS TABLE ══
+const ROWS=[
+  {id:'P',    label:'Barometric Pressure',    sym:'P',       dp:3},
+  {id:'DBT',  label:'Dry Bulb Temperature',   sym:'Tdb',     dp:2},
+  {id:'WBT',  label:'Wet Bulb Temperature',   sym:'Twb',     dp:2},
+  {id:'RH',   label:'Relative Humidity',      sym:'φ',       dp:1},
+  {id:'HR',   label:'Humidity Ratio',         sym:'W',       dp:5},
+  {id:'DP',   label:'Dew Point Temperature',  sym:'Tdp',     dp:2},
+  {id:'H',    label:'Specific Enthalpy',      sym:'h',       dp:2},
+  {id:'Pw',   label:'Vapour Pressure',        sym:'Pw',      dp:3},
+  {id:'PwsD', label:'Sat. Pressure at DBT',   sym:'Pws(T)',  dp:3},
+  {id:'PwsW', label:'Sat. Pressure at WBT',   sym:'Pws(t*)', dp:3},
+];
+const RFML={
+  P:{f:M.P.f,r:M.P.r},
+  DBT:{f:'Given or calculated from inputs',r:'See calculation method'},
+  WBT:{f:M.WBT.f,r:M.WBT.r},
+  RH:{f:M.RH12.f,r:M.RH12.r},
+  HR:{f:M.W35.f,r:M.W35.r},
+  DP:{f:M.DP.f,r:M.DP.r},
+  H:{f:M.H32.f,r:M.H32.r},
+  Pw:{f:M.Pw21.f,r:M.Pw21.r},
+  PwsD:{f:'Pws = f(T) — IAPWS constants',r:'ASHRAE 2021 Ch.1 Eq:5/Eq:6'},
+  PwsW:{f:'Pws = f(t*) — IAPWS constants',r:'ASHRAE 2021 Ch.1 Eq:5/Eq:6'},
+};
+
+// IP decimal places
+const IPdp={P:4,DBT:2,WBT:2,RH:1,HR:5,DP:2,H:3,Pw:4,PwsD:4,PwsW:4};
+
+function initTable(){renderTable(null);}
+
+// FIX: renderTable — correct IP conversion via toIP(), user rows show "USER INPUT"
+function renderTable(res){
+  const body=document.getElementById('rtbl-body');
+  const given=res?new Set(res.combo):new Set();
+  body.innerHTML=ROWS.map(row=>{
+    const v=res?res[row.id]:null;
+    const isG=given.has(row.id);
+    const isUserP=(row.id==='P'&&pressureSource==='user');
+    const hasV=v!=null&&!isNaN(v);
+
+    // SI display
+    const si_d=hasV?fmtV(v,row.id,row.dp):'—';
+    const si_u=SIu[row.id]||'';
+
+    // FIX: IP value is always converted from the SI stored value using toIP()
+    // This ensures IP column shows correctly converted values, not SI values
+    const ip_v=hasV?toIP(row.id,v):null;
+    const ip_dp=IPdp[row.id]??row.dp;
+    const ip_d=ip_v!=null?ip_v.toFixed(ip_dp):'—';
+    const ip_u=IPu[row.id]||'';
+
+    const rcls=isG?'row-g':hasV?'row-c':'';
+    const vcls=isG?'g':hasV?'b':'dim';
+
+    let f=RFML[row.id]?.f||'';
+    let r=RFML[row.id]?.r||'';
+    // Override with calculation-specific formulas
+    if(res){
+      if(row.id==='HR'&&res.mHR){f=res.mHR.f;r=res.mHR.r;}
+      if(row.id==='DBT'&&res.mDBT){f=res.mDBT.f;r=res.mDBT.r;}
+      if(row.id==='WBT'&&res.mWBT){f=res.mWBT.f;r=res.mWBT.r;}
+    }
+
+    // FIX: User-input rows show "USER INPUT" for formula and reference columns
+    if(isG||isUserP){f='User input';r='USER INPUT';}
+
+    return`<tr class="${rcls}">
+      <td>
+        <div style="font-weight:500;font-size:.75rem">${row.label}</div>
+        <div style="font-family:var(--mono);font-size:.58rem;color:var(--tx3)">${row.sym}</div>
+      </td>
+      <td class="tv ${vcls}">${hasV?`${si_d} ${si_u}`:'—'}</td>
+      <td class="tv ${vcls}">${ip_v!=null?`${ip_d} ${ip_u}`:'—'}</td>
+      <td class="fmlc hid">${f}</td>
+      <td class="refc hid">${r}</td>
+    </tr>`;
+  }).join('');
+  applyFmlVis();
+}
+
+function applyFmlVis(){
+  const show=showFml;
+  ['th-f','th-r'].forEach(id=>{const e=document.getElementById(id);if(e)e.className=show?'':'hid';});
+  document.querySelectorAll('.fmlc,.refc').forEach(el=>{
+    el.className=el.className.replace(/\bhid\b/g,'').trim();
+    if(!show)el.classList.add('hid');
+  });
+}
+
+function toggleFml(){
+  showFml=!showFml;
+  const btn=document.getElementById('fml-btn');
+  btn.classList.toggle('on',showFml);
+  btn.textContent=showFml?'Hide Formulas':'Show Formulas';
+  applyFmlVis();
+}
+
+// ══ PSYCHROMETRIC CHART ══
+function drawChart(res,cvid){
+  const cv=document.getElementById(cvid);if(!cv)return;
+  const dpr=window.devicePixelRatio||1;
+  const cssW=cv.parentElement.offsetWidth-22||780;
+  const cssH=Math.max(430,Math.round(cssW*.58));
+  cv.width=cssW*dpr;cv.height=cssH*dpr;
+  cv.style.width=cssW+'px';cv.style.height=cssH+'px';
+  const ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=cssW,H=cssH;
+  const P=getP();
+  const isIP=chartUnit==='IP';
+  const Tmin=-5,Tmax=50,Wmax=0.030;
+  const mx=60,my=18,mr=70,mb=38;
+  const pw=W-mx-mr,ph=H-my-mb;
+
+  function txT(T){return mx+(T-Tmin)/(Tmax-Tmin)*pw;}
+  function tyW(w){return my+ph-Math.min(Math.max(w,0),Wmax)/Wmax*ph;}
+
+  // Background
+  const bg=ctx.createLinearGradient(mx,my,mx,my+ph);
+  bg.addColorStop(0,'#f0f4f9');bg.addColorStop(1,'#eaf0f7');
+  ctx.fillStyle='#f7f8fb';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=bg;ctx.fillRect(mx,my,pw,ph);
+
+  const fs=7.5;
+  ctx.font=`${fs}px JetBrains Mono,monospace`;
+
+  // T grid
+  ctx.lineWidth=.5;
+  for(let T=Tmin;T<=Tmax;T+=5){
+    ctx.strokeStyle='#d8e2ee';ctx.beginPath();
+    ctx.moveTo(txT(T),my);ctx.lineTo(txT(T),my+ph);ctx.stroke();
+    if(T+2.5<=Tmax){
+      ctx.strokeStyle='#e8eef5';ctx.lineWidth=.3;
+      ctx.beginPath();ctx.moveTo(txT(T+2.5),my);ctx.lineTo(txT(T+2.5),my+ph);ctx.stroke();
+      ctx.lineWidth=.5;
+    }
+  }
+  // W grid
+  [0,.002,.004,.006,.008,.010,.012,.014,.016,.018,.020,.022,.024,.026,.028,.030].forEach(w=>{
+    ctx.strokeStyle=w%0.010===0?'#cdd8e5':'#dde8f0';ctx.lineWidth=w%0.010===0?.5:.3;
+    ctx.beginPath();ctx.moveTo(mx,tyW(w));ctx.lineTo(mx+pw,tyW(w));ctx.stroke();
+  });
+
+  // WBT LINES
+  if(lays.wbt){
+    ctx.setLineDash([4,5]);ctx.lineWidth=.8;
+    for(let Tw=-5;Tw<=30;Tw+=2){
+      ctx.strokeStyle='rgba(96,64,160,.22)';ctx.beginPath();
+      let s=false,lx=0,ly=0;
+      for(let T=Tw;T<=Tmax+.1;T+=.3){
+        const w=Fn_HR_WBT(T,Tw,P);
+        if(w<0||w>Wmax+.001)continue;
+        const x=txT(T),y=tyW(w);
+        s?(ctx.lineTo(x,y),lx=x,ly=y):(ctx.moveTo(x,y),s=true,lx=x,ly=y);
+      }
+      ctx.stroke();
+      if(s&&lx>0){
+        ctx.fillStyle='rgba(80,50,140,.55)';ctx.font=`${fs-1}px JetBrains Mono,monospace`;ctx.textAlign='left';
+        ctx.fillText(isIP?`${(Tw*9/5+32).toFixed(0)}°F`:`${Tw}°C`,lx+2,ly-1);
+      }
+    }
+    ctx.setLineDash([]);
+  }
+
+  // ENTHALPY LINES
+  if(lays.enth){
+    ctx.setLineDash([6,5]);ctx.lineWidth=.75;
+    for(let h=-10;h<=130;h+=5){
+      ctx.strokeStyle='rgba(122,89,16,.2)';ctx.beginPath();
+      let s=false,lx=0,ly=0;
+      for(let T=Tmin-.5;T<=Tmax+.5;T+=.5){
+        const w=Fn_W_H(h,T);if(w<0||w>Wmax+.001)continue;
+        const x=txT(T),y=tyW(w);
+        s?(ctx.lineTo(x,y),lx=x,ly=y):(ctx.moveTo(x,y),s=true);
+      }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(100,72,12,.5)';ctx.font=`${fs}px JetBrains Mono,monospace`;ctx.textAlign='right';
+    ctx.fillText(isIP?'h (BTU/lb)':'h (kJ/kg)',mx-3,my-5);
+  }
+
+  // HR GUIDE LINES
+  if(lays.hrg){
+    ctx.setLineDash([1,4]);ctx.lineWidth=.4;
+    [.002,.004,.006,.008,.010,.012,.014,.016,.018,.020,.025].forEach(w=>{
+      ctx.strokeStyle='rgba(42,122,64,.25)';
+      ctx.beginPath();ctx.moveTo(mx,tyW(w));ctx.lineTo(mx+pw,tyW(w));ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
+
+  // DP LINES
+  if(lays.dp){
+    ctx.setLineDash([2,5]);ctx.lineWidth=.5;
+    for(let dp=0;dp<=45;dp+=5){
+      const Pw_dp=Fn_Pws(dp),W_dp=Fn_W_Pw(Pw_dp,P);
+      if(W_dp>Wmax||W_dp<0)continue;
+      ctx.strokeStyle='rgba(140,50,50,.2)';
+      ctx.beginPath();ctx.moveTo(mx,tyW(W_dp));ctx.lineTo(mx+pw,tyW(W_dp));ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  // RH CURVES
+  if(lays.rh){
+    [10,20,30,40,50,60,70,80,90].forEach(rh=>{
+      ctx.beginPath();ctx.strokeStyle=`rgba(20,90,180,${.2+rh*.003})`;ctx.lineWidth=1.1;
+      let s=false,lx=0,ly=0;
+      for(let T=Tmin;T<=Tmax;T+=.3){
+        const Pws=Fn_Pws(T),Pw=(rh/100)*Pws;
+        if(Pw>=P)break;
+        const w=Fn_W_Pw(Pw,P);if(w<0||w>Wmax)continue;
+        const x=txT(T),y=tyW(w);
+        s?(ctx.lineTo(x,y),lx=x,ly=y):(ctx.moveTo(x,y),s=true,lx=x,ly=y);
+      }
+      ctx.stroke();
+      if(s){
+        ctx.fillStyle=`rgba(20,90,180,${.35+rh*.003})`;ctx.font=`bold ${fs}px JetBrains Mono,monospace`;ctx.textAlign='left';
+        ctx.fillText(`${rh}%`,lx+3,ly+3);
+      }
+    });
+  }
+
+  // SATURATION CURVE
+  if(lays.sat){
+    ctx.beginPath();ctx.strokeStyle='#1e5fa8';ctx.lineWidth=2.2;ctx.setLineDash([]);
+    let s=false;
+    for(let T=Tmin;T<=Tmax;T+=.2){
+      const Pws=Fn_Pws(T);if(Pws>=P)break;
+      const w=Fn_W_Pw(Pws,P);if(w>Wmax)break;
+      s?(ctx.lineTo(txT(T),tyW(w))):(ctx.moveTo(txT(T),tyW(w)),s=true);
+    }
+    ctx.stroke();
+    ctx.fillStyle='rgba(20,80,160,.75)';ctx.font=`bold ${fs}px JetBrains Mono,monospace`;ctx.textAlign='left';
+    ctx.fillText('φ = 100%',txT(18),tyW(Fn_W_Pw(Fn_Pws(18),P))-7);
+  }
+
+  // STATE POINT
+  if(lays.pt&&res&&res.DBT!=null&&res.HR!=null){
+    const ptx=txT(res.DBT),pty=tyW(res.HR);
+    ctx.strokeStyle='rgba(160,32,32,.2)';ctx.lineWidth=.9;ctx.setLineDash([2,3]);
+    ctx.beginPath();ctx.moveTo(ptx,my);ctx.lineTo(ptx,my+ph);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(mx,pty);ctx.lineTo(mx+pw,pty);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(ptx,pty,8,0,2*Math.PI);
+    ctx.fillStyle='rgba(192,32,32,.08)';ctx.fill();
+    ctx.strokeStyle='rgba(192,32,32,.3)';ctx.lineWidth=1;ctx.stroke();
+    ctx.beginPath();ctx.arc(ptx,pty,4.5,0,2*Math.PI);
+    ctx.fillStyle='rgba(192,32,32,.15)';ctx.fill();
+    ctx.strokeStyle='#b91c1c';ctx.lineWidth=1.8;ctx.stroke();
+    ctx.beginPath();ctx.arc(ptx,pty,2,0,2*Math.PI);ctx.fillStyle='#b91c1c';ctx.fill();
+    const tdbTxt=isIP?(res.DBT*9/5+32).toFixed(1):res.DBT.toFixed(1);
+    const vals=[
+      `Tdb: ${tdbTxt}${isIP?'°F':'°C'}`,
+      `W: ${isIP?(res.HR*7000).toFixed(1):(res.HR*1000).toFixed(2)} ${isIP?'gr/lb':'g/kg'}`,
+      res.RH!=null?`φ: ${res.RH.toFixed(1)}%`:null,
+      res.H!=null?`h: ${isIP?(res.H/2.326).toFixed(1):res.H.toFixed(1)} ${isIP?'BTU/lb':'kJ/kg'}`:null,
+      res.WBT!=null?`Twb: ${isIP?(res.WBT*9/5+32).toFixed(1):res.WBT.toFixed(1)}${isIP?'°F':'°C'}`:null,
+      res.DP!=null?`Tdp: ${isIP?(res.DP*9/5+32).toFixed(1):res.DP.toFixed(1)}${isIP?'°F':'°C'}`:null,
+    ].filter(Boolean);
+    const lbW=112,lbH=vals.length*11+10;
+    const lbX=ptx>W*.65?ptx-lbW-14:ptx+14;
+    const lbY=Math.max(my+2,Math.min(pty-lbH/2,my+ph-lbH));
+    ctx.fillStyle='rgba(255,255,255,.92)';ctx.strokeStyle='rgba(180,32,32,.4)';ctx.lineWidth=.8;
+    ctx.beginPath();if(ctx.roundRect)ctx.roundRect(lbX,lbY,lbW,lbH,4);else ctx.rect(lbX,lbY,lbW,lbH);
+    ctx.fill();ctx.stroke();
+    ctx.font=`7.5px JetBrains Mono,monospace`;ctx.fillStyle='#8b1c1c';ctx.textAlign='left';
+    vals.forEach((v,i)=>ctx.fillText(v,lbX+7,lbY+6+(i+.8)*11));
+  }
+
+  // BORDER & AXES
+  ctx.strokeStyle='#8a98a8';ctx.lineWidth=1.2;ctx.strokeRect(mx,my,pw,ph);
+  ctx.fillStyle='#556070';ctx.textAlign='center';ctx.font=`${fs}px JetBrains Mono,monospace`;
+  for(let T=Tmin;T<=Tmax+.1;T+=5){
+    const xl=txT(T);
+    ctx.fillText(`${isIP?(T*9/5+32).toFixed(0):T.toFixed(0)}${isIP?'°F':'°C'}`,xl,my+ph+13);
+    ctx.strokeStyle='#b0bcc8';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(xl,my+ph);ctx.lineTo(xl,my+ph+4);ctx.stroke();
+  }
+  ctx.textAlign='left';
+  [[0,'0'],[.003,'3'],[.006,'6'],[.009,'9'],[.012,'12'],[.015,'15'],[.018,'18'],[.021,'21'],[.024,'24'],[.027,'27'],[.030,'30']].forEach(([w,lbl])=>{
+    const y=tyW(w);
+    const dispLbl=isIP?(parseFloat(lbl)*7000).toFixed(0):lbl;
+    ctx.fillStyle='#556070';ctx.fillText(dispLbl,mx+pw+4,y+3);
+    ctx.strokeStyle='#b0bcc8';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(mx+pw,y);ctx.lineTo(mx+pw+3,y);ctx.stroke();
+  });
+  ctx.fillStyle='#3d5068';ctx.textAlign='center';ctx.font=`bold ${fs+1}px JetBrains Mono,monospace`;
+  ctx.fillText(`Dry Bulb Temperature (${isIP?'°F':'°C'})`,mx+pw/2,H-8);
+  ctx.save();ctx.translate(12,my+ph/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText(`Humidity Ratio (${isIP?'grains/lb':'g/kg dry air'})`,0,0);ctx.restore();
+}
+
+function tlay(el){const k=el.dataset.k;lays[k]=!lays[k];el.classList.toggle('off',!lays[k]);drawChart(lastR,'chart-cv');}
+
+// ══ ATMOSPHERIC VISUALISER ══
+let animState={alt:0,P:101.325,DBT:null,WBT:null,RH:null,HR:null,DP:null,H:null};
+let animT=0;
+const molecules=Array.from({length:55},()=>({
+  x:Math.random()*600,y:10+Math.random()*130,
+  vx:.25+Math.random()*.55,vy:(Math.random()-.5)*.13,
+  r:.55+Math.random()*1.1,o:.15+Math.random()*.5,phase:Math.random()*Math.PI*2
+}));
+const rainDrops=Array.from({length:80},()=>({
+  x:Math.random()*600,y:Math.random()*160,
+  speed:4+Math.random()*4,len:8+Math.random()*10,o:.3+Math.random()*.5
+}));
+
+function startAnim(){
+  const cv=document.getElementById('anim-cv');
+  function frame(){
+    requestAnimationFrame(frame);
+    if(!animVis)return;
+    const W=cv.width=cv.offsetWidth||340,H=cv.height=180;
+    const ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,W,H);
+    animT+=.018;
+    const alt=animState.alt||0,altF=Math.min(Math.max(alt/8000,0),1);
+    const rh=animState.RH!=null?animState.RH:50,dbt=animState.DBT,P=animState.P||101.325;
+    const tNorm=dbt!=null?Math.min(Math.max((dbt+10)/80,0),1):0.4;
+
+    // Sky gradient
+    const skyC=altF>.85?['#030508','#060c14']:altF>.6?['#060c18','#0a1825']:
+      tNorm<.2?['#0a1428','#0e2040']:tNorm<.45?['#0e2040','#163060']:
+      tNorm<.6?['#0c2248','#1a3868']:tNorm<.75?['#1a2840','#2a3850']:['#281608','#3a2010'];
+    const sk=ctx.createLinearGradient(0,0,0,H);
+    sk.addColorStop(0,skyC[0]);sk.addColorStop(1,skyC[1]);
+    ctx.fillStyle=sk;ctx.fillRect(0,0,W,H);
+
+    // Sun
+    if(dbt!=null&&dbt>20){
+      const sunA=Math.min((dbt-20)/40,.9);
+      const sg=ctx.createRadialGradient(W-30,20,0,W-30,20,30);
+      sg.addColorStop(0,`rgba(255,220,80,${sunA})`);sg.addColorStop(1,'rgba(255,100,0,0)');
+      ctx.fillStyle=sg;ctx.beginPath();ctx.arc(W-30,20,30,0,Math.PI*2);ctx.fill();
+    }
+
+    // Clouds
+    if(rh>30){
+      const cA=Math.min((rh-30)/70,.75);
+      const cC=rh>80?`rgba(140,155,175,${cA})`:`rgba(220,228,238,${cA})`;
+      [[W*.12,22,38],[W*.45,15,50],[W*.72,18,42]].forEach(([cx,cy,sz],i)=>{
+        if(rh>30+i*20) drawCloud(ctx,cx,cy,sz,cC);
+      });
+    }
+
+    // Rain
+    const rainI=Math.max(0,(rh-85)/15);
+    if(rainI>0){
+      rainDrops.forEach(d=>{
+        d.y+=d.speed*rainI;
+        if(d.y>H+10){d.y=-10;d.x=Math.random()*W;}
+        ctx.strokeStyle=`rgba(120,180,240,${d.o*rainI})`;ctx.lineWidth=.8;
+        ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x-1.5,d.y+d.len*rainI);ctx.stroke();
+      });
+    }
+
+    // Terrain
+    const peakH=H*(0.15+altF*.65),groundY=H-32;
+    ctx.beginPath();ctx.moveTo(0,H);
+    [[0,groundY-peakH*.4],[W*.32,groundY-peakH*.7],[W*.48,groundY-peakH*.95],[W*.82,groundY-peakH*.65],[W,groundY-peakH*.3],[W,H]].forEach(([x,y])=>ctx.lineTo(x,y));
+    ctx.fillStyle='rgba(20,38,65,.45)';ctx.fill();
+    ctx.beginPath();ctx.moveTo(0,H);
+    [[0,groundY-peakH*.3],[W*.28,groundY-peakH*.85],[W*.48,groundY-peakH*.95],[W*.68,groundY-peakH*.75],[W,groundY-peakH*.45],[W,H]].forEach(([x,y])=>ctx.lineTo(x,y));
+    ctx.fillStyle='rgb(18,38,62)';ctx.fill();
+    const gsG=ctx.createLinearGradient(0,groundY,0,H);
+    gsG.addColorStop(0,tNorm<.25?'#0a1830':tNorm<.5?'#1a3820':'#3a2808');
+    gsG.addColorStop(1,'#080e18');
+    ctx.fillStyle=gsG;ctx.fillRect(0,groundY,W,H-groundY);
+
+    // Altitude bar
+    const barX=W-22,barH=H-50,barY=18,barW=7;
+    ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.roundRect?ctx.roundRect(barX,barY,barW,barH,3):ctx.rect(barX,barY,barW,barH);ctx.fill();
+    if(altF>0){
+      const fillH=barH*altF;
+      const bg=ctx.createLinearGradient(0,barY+barH,0,barY);
+      bg.addColorStop(0,'#1b5faa');bg.addColorStop(1,'#88d0f0');
+      ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect?ctx.roundRect(barX,barY+barH-fillH,barW,fillH,3):ctx.rect(barX,barY+barH-fillH,barW,fillH);ctx.fill();
+    }
+    ctx.strokeStyle='rgba(100,220,255,.8)';ctx.lineWidth=1.2;
+    const mY=barY+barH-barH*altF;
+    ctx.beginPath();ctx.moveTo(barX-4,mY);ctx.lineTo(barX+barW+3,mY);ctx.stroke();
+    ctx.fillStyle='rgba(100,220,255,.75)';ctx.font='6px JetBrains Mono,monospace';ctx.textAlign='right';
+    ctx.fillText(`${alt.toFixed(0)}m`,barX-6,mY+3);
+
+    // Temp bar
+    if(dbt!=null){
+      const tgX=12,tgH=H-55,tgY=22,tgW=7,tN2=Math.min(Math.max((dbt+10)/80,0),1);
+      ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.rect(tgX,tgY,tgW,tgH);ctx.fill();
+      const tFill=tgH*tN2;
+      const tg=ctx.createLinearGradient(0,tgY+tgH,0,tgY);
+      tg.addColorStop(0,'#1060c8');tg.addColorStop(.35,'#20a060');tg.addColorStop(.65,'#e8b020');tg.addColorStop(1,'#e03020');
+      ctx.fillStyle=tg;ctx.beginPath();ctx.rect(tgX,tgY+tgH-tFill,tgW,tFill);ctx.fill();
+      const tdY=tgY+tgH-tgH*tN2;
+      ctx.strokeStyle='rgba(255,160,80,.9)';ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.moveTo(tgX-3,tdY);ctx.lineTo(tgX+tgW+2,tdY);ctx.stroke();
+      ctx.fillStyle='rgba(255,160,80,.85)';ctx.font='bold 7px JetBrains Mono,monospace';ctx.textAlign='left';
+      ctx.fillText(`${dbt.toFixed(0)}°C`,tgX+tgW+4,tdY+8);
+    }
+
+    // Molecules
+    const airDens=Math.max(.2,1-altF*.72),molSpeed=dbt!=null?Math.min(Math.max(1+(dbt-20)*.025,.4),2.2):1;
+    molecules.forEach(mol=>{
+      mol.x+=mol.vx*molSpeed*airDens;
+      mol.y+=mol.vy+Math.sin(animT+mol.phase)*.08;
+      if(mol.x>W+5){mol.x=-5;mol.y=15+Math.random()*(H-55);}
+      if(mol.y<10||mol.y>H-42)mol.vy*=-1;
+      ctx.beginPath();ctx.arc(mol.x,mol.y,mol.r*(rainI>.5?.5:1),0,Math.PI*2);
+      const mc=dbt==null?'130,170,210':dbt<10?'90,130,220':dbt<28?'100,180,200':'200,120,60';
+      ctx.fillStyle=`rgba(${mc},${mol.o*airDens*(rh/100*.4+.3)})`;ctx.fill();
+    });
+
+    // Condition label
+    const lbl=getCond(dbt,rh,alt);
+    if(lbl){
+      ctx.font='bold 7.5px JetBrains Mono,monospace';ctx.textAlign='center';
+      ctx.fillStyle='rgba(220,235,255,.5)';ctx.fillText(lbl,W/2,H-10);
+    }
+  }
+  frame();
+}
+
+function drawCloud(ctx,cx,cy,size,color){
+  ctx.fillStyle=color;
+  [[0,0,size*.55],[size*.4,-size*.15,size*.45],[size*.78,size*.02,size*.4],
+   [size*.38,size*.18,size*.42],[-.02,size*.12,size*.4]].forEach(([dx,dy,r])=>{
+    ctx.beginPath();ctx.arc(cx+dx,cy+dy,r,0,Math.PI*2);ctx.fill();
+  });
+}
+
+function getCond(dbt,rh,alt){
+  if(dbt==null)return alt>5000?'HIGH ALTITUDE':alt>2000?'ELEVATED':'SEA LEVEL';
+  if(rh>=98)return'SATURATION — CONDENSING';
+  if(rh>=85)return'NEAR SATURATION';
+  if(dbt>45)return'EXTREME HEAT';
+  if(dbt>35)return'HOT & '+(rh>60?'HUMID':'DRY');
+  if(dbt>24&&rh>70)return'WARM & HUMID';
+  if(dbt>18&&rh<40)return'COMFORTABLE & DRY';
+  if(dbt>18)return'COMFORTABLE';
+  if(dbt>10)return'COOL CONDITIONS';
+  if(dbt>0)return'COLD CONDITIONS';
+  return'FREEZING CONDITIONS';
+}
+
+function updAnim(d){
+  Object.assign(animState,d);
+  document.getElementById('av-alt').textContent=`Alt: ${(d.alt||0).toFixed(0)} m`;
+  if(d.P)document.getElementById('av-p').textContent=`P: ${d.P.toFixed(3)} kPa`;
+  if(d.DBT!=null)document.getElementById('av-t').innerHTML=`T<sub>db</sub>: ${d.DBT.toFixed(1)} °C`;
+  if(d.RH!=null)document.getElementById('av-rh').textContent=`φ: ${d.RH.toFixed(0)} %`;
+  if(d.HR!=null)document.getElementById('av-w').textContent=`W: ${(d.HR*1000).toFixed(1)} g/kg`;
+  if(d.H!=null)document.getElementById('av-h').textContent=`h: ${d.H.toFixed(1)} kJ/kg`;
+  if(d.DP!=null)document.getElementById('av-dp').innerHTML=`T<sub>dp</sub>: ${d.DP.toFixed(1)} °C`;
+}
+
+// ══ UI ══
+function toggleAnimVis(){
+  animVis=!animVis;
+  document.getElementById('av-body').style.display=animVis?'':'none';
+  const btn=document.getElementById('av-btn');
+  btn.textContent=animVis?'Hide':'Show';btn.classList.toggle('on',!animVis);
+}
+function toggleChart(){
+  chartVis=!chartVis;
+  document.getElementById('vc-body').style.display=chartVis?'':'none';
+  const btn=document.getElementById('vc-btn');
+  btn.textContent=chartVis?'Hide':'Show';btn.classList.toggle('on',!chartVis);
+}
+
+function modal(type,title,msg){
+  const icons={err:'✕',warn:'⚠',ok:'✓',info:'ℹ'};
+  const cls={err:'merr',warn:'mwrn',ok:'mok',info:'minf'};
+  document.getElementById('mico').textContent=icons[type]||'ℹ';
+  document.getElementById('mico').className='mico '+(cls[type]||'minf');
+  document.getElementById('mtit').textContent=title;
+  document.getElementById('mmsg').textContent=msg;
+  document.getElementById('mov').classList.add('show');
+}
+function cModal(e){if(!e||e.target===document.getElementById('mov'))document.getElementById('mov').classList.remove('show');}
+
+// ══ FEEDBACK ══
+function openFB(){
+  fbOpen=!fbOpen;
+  const el=document.getElementById('fb-panel');
+  if(fbOpen){el.style.display='block';requestAnimationFrame(()=>el.classList.add('open'));}
+  else{el.classList.remove('open');setTimeout(()=>{if(!fbOpen)el.style.display='none';},320);}
+}
+function setR(v){fbRat=v;document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('on',i<v));}
+function submitFB(){
+  const msg=document.getElementById('fb-msg').value.trim();
+  if(!msg){alert('Please enter a message.');return;}
+  const okEl=document.getElementById('fb-ok');
+  okEl.style.color='var(--tx3)';okEl.textContent='Sending…';
+  const payload={
+    rating:fbRat,
+    category:document.getElementById('fb-cat').value,
+    name:document.getElementById('fb-name').value||'Anonymous',
+    message:msg
+  };
+  fetch('https://formspree.io/f/mrejrdvy',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify(payload)
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.ok||data.next){
+      document.getElementById('fb-msg').value='';
+      setR(0);
+      okEl.style.color='var(--grn)';okEl.textContent='✓ Feedback submitted!';
+      setTimeout(openFB,1200);
+    }else{
+      okEl.style.color='#e55';okEl.textContent='✗ Submission failed. Try again.';
+    }
+  })
+  .catch(()=>{okEl.style.color='#e55';okEl.textContent='✗ Network error. Try again.';});
+}
+
+// ══ EXPORT ══
+function doCSV(){
+  if(!lastR){modal('info','Nothing to Export','Run a calculation first.');return;}
+  const r=lastR;
+  const rows=[
+    ['AIR PROPERTIES CALCULATION — PSYCHRO-X ENGINE'],
+    ['ASHRAE Fundamentals 2021, Chapter 1 | Accuracy ±5%'],[''],
+    ['Property','SI Value','SI Unit','IP Value','IP Unit'],
+    ['Barometric Pressure',r.P?.toFixed(3),'kPa',(r.P/6.89476).toFixed(4),'psi'],
+    ['Dry Bulb Temperature',r.DBT?.toFixed(2),'°C',((r.DBT||0)*9/5+32).toFixed(2),'°F'],
+    ['Wet Bulb Temperature',r.WBT?.toFixed(2),'°C',((r.WBT||0)*9/5+32).toFixed(2),'°F'],
+    ['Relative Humidity',r.RH?.toFixed(1),'%',r.RH?.toFixed(1),'%'],
+    ['Humidity Ratio',r.HR?.toFixed(5),'kg/kg',r.HR?.toFixed(5),'lb/lb'],
+    ['Dew Point Temperature',r.DP?.toFixed(2),'°C',((r.DP||0)*9/5+32).toFixed(2),'°F'],
+    ['Specific Enthalpy',r.H?.toFixed(2),'kJ/kg',(r.H!=null?(r.H/2.326).toFixed(3):'—'),'BTU/lb'],
+    ['Vapour Pressure',r.Pw?.toFixed(3),'kPa',(r.Pw!=null?(r.Pw/6.89476).toFixed(4):'—'),'psi'],
+  ];
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='air_properties_calculation.csv';a.click();
+}
+
+function doPDF(){
+  if(!lastR){modal('info','Nothing to Export','Run a calculation first.');return;}
+  const r=lastR;
+  const w=window.open('','_blank');
+  if(!w){modal('warn','Popup Blocked','Please allow popups to export PDF.');return;}
+  const given=new Set(r.combo);
+  const rows=[
+    ['Barometric Pressure','P',r.P?.toFixed(3),'kPa',(r.P/6.89476).toFixed(4),'psi',M.P.f,M.P.r,false],
+    ['Dry Bulb Temperature','Tdb',r.DBT?.toFixed(2),'°C',((r.DBT||0)*9/5+32).toFixed(2),'°F',r.mDBT?.f||'Given',r.mDBT?.r||'USER INPUT',given.has('DBT')],
+    ['Wet Bulb Temperature','Twb',r.WBT?.toFixed(2),'°C',((r.WBT||0)*9/5+32).toFixed(2),'°F',r.mWBT?.f||M.WBT.f,r.mWBT?.r||M.WBT.r,given.has('WBT')],
+    ['Relative Humidity','φ',r.RH?.toFixed(1),'%',r.RH?.toFixed(1),'%',M.RH12.f,M.RH12.r,given.has('RH')],
+    ['Humidity Ratio','W',r.HR?.toFixed(5),'kg/kg',r.HR?.toFixed(5),'lb/lb',r.mHR?.f||M.W35.f,r.mHR?.r||M.W35.r,given.has('HR')],
+    ['Dew Point Temp','Tdp',r.DP?.toFixed(2),'°C',((r.DP||0)*9/5+32).toFixed(2),'°F',M.DP.f,M.DP.r,given.has('DP')],
+    ['Specific Enthalpy','h',r.H?.toFixed(2),'kJ/kg',(r.H!=null?(r.H/2.326).toFixed(3):'—'),'BTU/lb',M.H32.f,M.H32.r,given.has('H')],
+    ['Vapour Pressure','Pw',r.Pw?.toFixed(3),'kPa',(r.Pw!=null?(r.Pw/6.89476).toFixed(4):'—'),'psi',M.Pw21.f,M.Pw21.r,false],
+    ['Sat. Pressure @ DBT','Pws(T)',r.PwsD?.toFixed(3),'kPa',(r.PwsD!=null?(r.PwsD/6.89476).toFixed(4):'—'),'psi','Eq:5/Eq:6','ASHRAE 2021 Ch.1',false],
+    ['Sat. Pressure @ WBT','Pws(t*)',r.PwsW?.toFixed(3),'kPa',(r.PwsW!=null?(r.PwsW/6.89476).toFixed(4):'—'),'psi','Eq:5/Eq:6','ASHRAE 2021 Ch.1',false],
+  ];
+  w.document.write(`<!DOCTYPE html><html><head><title>Air Properties Calculation — PSYCHRO-X</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:10pt;margin:1.8cm;color:#111}
+    h1{font-size:13pt;font-weight:bold;text-align:center;padding-bottom:6px;border-bottom:2.5px solid #1b5faa;margin-bottom:3px;color:#0f2040}
+    .sub{text-align:center;font-size:8.5pt;color:#555;margin-bottom:14px}
+    .kb{background:#eef7ee;border:1px solid #9dcfb0;border-radius:4px;padding:8px 12px;margin-bottom:14px}
+    .kt{font-weight:bold;font-size:9.5pt;color:#1a7845;margin-bottom:5px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#1b5faa;color:#fff;text-align:center;padding:5px 6px;font-size:8.5pt;border:1px solid #1b5faa}
+    th.tl{text-align:left}
+    td{padding:4px 6px;border:1px solid #d0dce8;font-size:8.5pt;text-align:center;vertical-align:top}
+    td.tl{text-align:left}
+    tr.gv td{background:#eef7ee;font-weight:bold}
+    tr:nth-child(even):not(.gv) td{background:#f5f8fc}
+    td.fm{font-size:7.5pt;color:#334;text-align:left}
+    td.rf{font-size:7pt;color:#667;text-align:left}
+    .ft{font-size:7.5pt;color:#888;margin-top:12px;border-top:1px solid #ccc;padding-top:5px;text-align:center}
+    @media print{body{margin:1.2cm}}
+  </style></head><body>
+  <h1>AIR PROPERTIES CALCULATION</h1>
+  <div class="sub">PSYCHRO-X ENGINE · ASHRAE Fundamentals Handbook 2021, Chapter 1 · Accuracy ±5%<br>Generated: ${new Date().toLocaleString()}</div>
+  <div class="kb"><div class="kt">Known Values (User Input)</div>
+    ${r.combo.map(id=>{const L={DBT:'Dry Bulb Temp',WBT:'Wet Bulb Temp',RH:'Relative Humidity',HR:'Humidity Ratio',DP:'Dew Point',H:'Enthalpy'};
+      return`<span style="display:inline-block;margin:2px 14px 2px 0;font-size:9pt"><b>${L[id]||id}:</b> ${r[id]?.toFixed(4)||'—'} ${SIu[id]||''}</span>`;
+    }).join('')}
+    <span style="display:inline-block;margin:2px 14px 2px 0;font-size:9pt"><b>Pressure:</b> ${r.P?.toFixed(3)} kPa</span>
+  </div>
+  <table>
+    <tr>
+      <th class="tl" style="min-width:120px">Property</th><th>Symbol</th>
+      <th>SI Value</th><th>SI Unit</th><th>IP Value</th><th>IP Unit</th>
+      <th class="tl" style="min-width:170px">Formula</th><th class="tl" style="min-width:160px">ASHRAE Reference</th>
+    </tr>
+    ${rows.map(([lbl,sym,si,su,ip,iu,f,ref,isG])=>`
+    <tr class="${isG?'gv':''}">
+      <td class="tl">${lbl}</td><td style="font-family:monospace">${sym}</td>
+      <td>${si||'—'}</td><td>${su}</td><td>${ip||'—'}</td><td>${iu}</td>
+      <td class="fm">${isG?'USER INPUT':f||'—'}</td>
+      <td class="rf">${isG?'USER INPUT':ref||'—'}</td>
+    </tr>`).join('')}
+  </table>
+  <div class="ft">ASHRAE Fundamentals Handbook 2021, Chapter 1 · Accuracy ±5% · PSYCHRO-X Engine · Created by JANA</div>
+  <script>setTimeout(()=>window.print(),500);<\/script></body></html>`);
+}
+
+// Resize
+let rzt;
+window.addEventListener('resize',()=>{clearTimeout(rzt);rzt=setTimeout(()=>drawChart(lastR,'chart-cv'),180);});
+</script>
+</body>
+</html>
