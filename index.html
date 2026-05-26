@@ -449,6 +449,7 @@ nav{position:sticky;top:0;z-index:200;background:var(--surf);border-bottom:1px s
             <button class="ub on" onclick="setChartUnit('SI',this)">SI</button>
             <button class="ub" onclick="setChartUnit('IP',this)">IP</button>
           </div>
+          <button class="bsm" onclick="downloadChart()">&#8681; PNG</button>
           <button class="bsm" id="vc-btn" onclick="toggleChart()">Hide</button>
         </div>
       </div>
@@ -896,11 +897,14 @@ function calculate(){
   if(RH!=null&&(RH<0||RH>100)){
     modal('err','Invalid Input','Relative Humidity must be between 0% and 100%.');return;
   }
-  if(DBT!=null&&DBT<-60){
-    modal('err','Out of Range','Dry Bulb Temperature below −60°C is outside ASHRAE valid range.');return;
+  if(DBT!=null&&DBT<0){
+    modal('err','Out of Range','Dry Bulb Temperature below 0°C is outside ASHRAE Psychrometric Chart No.1 (Normal Temperature) range of 0–50°C.\n\nRef: ASHRAE Fundamentals 2021, Chapter 1, Section 9.');return;
   }
   if(DBT!=null&&DBT>70){
-    modal('err','Out of Range','Dry Bulb Temperature above 70°C is outside normal HVAC range.');return;
+    modal('err','Out of Range','Dry Bulb Temperature above 70°C is beyond the supported calculation range.');return;
+  }
+  if(DBT!=null&&DBT>50){
+    modal('warn','Chart Range Notice',`Dry Bulb Temperature ${DBT.toFixed(1)}°C exceeds ASHRAE Psychrometric Chart No. 1 (Normal Temperature) range of 0–50°C.\n\nRef: ASHRAE Fundamentals 2021, Chapter 1, Section 9.\n\nCalculations will proceed normally but the state point may fall outside the chart area.`);
   }
 
   try{
@@ -1152,8 +1156,8 @@ function drawChart(res,cvid){
   const W=cssW,H=cssH;
   const P=getP();
   const isIP=chartUnit==='IP';
-  const Tmin=-5,Tmax=50,Wmax=0.030;
-  const mx=60,my=18,mr=70,mb=38;
+  const Tmin=0,Tmax=50,Wmax=0.030;
+  const mx=60,my=18,mr=90,mb=38;
   const pw=W-mx-mr,ph=H-my-mb;
 
   function txT(T){return mx+(T-Tmin)/(Tmax-Tmin)*pw;}
@@ -1173,25 +1177,28 @@ function drawChart(res,cvid){
   for(let T=Tmin;T<=Tmax;T+=5){
     ctx.strokeStyle='#d8e2ee';ctx.beginPath();
     ctx.moveTo(txT(T),my);ctx.lineTo(txT(T),my+ph);ctx.stroke();
-    if(T+2.5<=Tmax){
-      ctx.strokeStyle='#e8eef5';ctx.lineWidth=.3;
-      ctx.beginPath();ctx.moveTo(txT(T+2.5),my);ctx.lineTo(txT(T+2.5),my+ph);ctx.stroke();
-      ctx.lineWidth=.5;
+    for(let mt=1;mt<5;mt++){
+      if(T+mt<=Tmax){
+        ctx.strokeStyle=mt===2.5?'#e4ebf3':'#eef2f7';ctx.lineWidth=.25;
+        ctx.beginPath();ctx.moveTo(txT(T+mt),my);ctx.lineTo(txT(T+mt),my+ph);ctx.stroke();
+        ctx.lineWidth=.5;
+      }
     }
   }
   // W grid
-  [0,.002,.004,.006,.008,.010,.012,.014,.016,.018,.020,.022,.024,.026,.028,.030].forEach(w=>{
-    ctx.strokeStyle=w%0.010===0?'#cdd8e5':'#dde8f0';ctx.lineWidth=w%0.010===0?.5:.3;
+  for(let w=0;w<=0.030+0.0001;w+=0.001){
+    const isMaj=Math.round(w*1000)%5===0;
+    ctx.strokeStyle=isMaj?'#cdd8e5':'#e8eef5';ctx.lineWidth=isMaj?.5:.2;
     ctx.beginPath();ctx.moveTo(mx,tyW(w));ctx.lineTo(mx+pw,tyW(w));ctx.stroke();
-  });
+  }
 
   // WBT LINES
   if(lays.wbt){
     ctx.setLineDash([4,5]);ctx.lineWidth=.8;
-    for(let Tw=-5;Tw<=30;Tw+=2){
+    for(let Tw=0;Tw<=45;Tw+=5){
       ctx.strokeStyle='rgba(96,64,160,.22)';ctx.beginPath();
       let s=false,lx=0,ly=0;
-      for(let T=Tw;T<=Tmax+.1;T+=.3){
+      for(let T=Math.max(Tw,Tmin);T<=Tmax+.1;T+=.3){
         const w=Fn_HR_WBT(T,Tw,P);
         if(w<0||w>Wmax+.001)continue;
         const x=txT(T),y=tyW(w);
@@ -1209,7 +1216,7 @@ function drawChart(res,cvid){
   // ENTHALPY LINES
   if(lays.enth){
     ctx.setLineDash([6,5]);ctx.lineWidth=.75;
-    for(let h=-10;h<=130;h+=5){
+    for(let h=0;h<=140;h+=5){
       ctx.strokeStyle='rgba(122,89,16,.2)';ctx.beginPath();
       let s=false,lx=0,ly=0;
       for(let T=Tmin-.5;T<=Tmax+.5;T+=.5){
@@ -1237,7 +1244,7 @@ function drawChart(res,cvid){
   // DP LINES
   if(lays.dp){
     ctx.setLineDash([2,5]);ctx.lineWidth=.5;
-    for(let dp=0;dp<=45;dp+=5){
+    for(let dp=0;dp<=50;dp+=5){
       const Pw_dp=Fn_Pws(dp),W_dp=Fn_W_Pw(Pw_dp,P);
       if(W_dp>Wmax||W_dp<0)continue;
       ctx.strokeStyle='rgba(140,50,50,.2)';
@@ -1248,6 +1255,19 @@ function drawChart(res,cvid){
 
   // RH CURVES
   if(lays.rh){
+    // Draw faint 5% interval curves first
+    [5,15,25,35,45,55,65,75,85,95].forEach(rh=>{
+      ctx.beginPath();ctx.strokeStyle=`rgba(20,90,180,0.08)`;ctx.lineWidth=0.5;ctx.setLineDash([3,4]);
+      let s=false;
+      for(let T=Tmin;T<=Tmax;T+=.3){
+        const Pws=Fn_Pws(T),Pw=(rh/100)*Pws;
+        if(Pw>=P)break;
+        const w=Fn_W_Pw(Pw,P);if(w<0||w>Wmax)continue;
+        const x=txT(T),y=tyW(w);
+        s?(ctx.lineTo(x,y)):(ctx.moveTo(x,y),s=true);
+      }
+      ctx.stroke();ctx.setLineDash([]);
+    });
     [10,20,30,40,50,60,70,80,90].forEach(rh=>{
       ctx.beginPath();ctx.strokeStyle=`rgba(20,90,180,${.2+rh*.003})`;ctx.lineWidth=1.1;
       let s=false,lx=0,ly=0;
@@ -1322,16 +1342,16 @@ function drawChart(res,cvid){
     ctx.strokeStyle='#b0bcc8';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(xl,my+ph);ctx.lineTo(xl,my+ph+4);ctx.stroke();
   }
   ctx.textAlign='left';
-  [[0,'0'],[.003,'3'],[.006,'6'],[.009,'9'],[.012,'12'],[.015,'15'],[.018,'18'],[.021,'21'],[.024,'24'],[.027,'27'],[.030,'30']].forEach(([w,lbl])=>{
+  [[0,'0.000'],[.003,'0.003'],[.006,'0.006'],[.009,'0.009'],[.012,'0.012'],[.015,'0.015'],[.018,'0.018'],[.021,'0.021'],[.024,'0.024'],[.027,'0.027'],[.030,'0.030']].forEach(([w,lbl])=>{
     const y=tyW(w);
-    const dispLbl=isIP?(parseFloat(lbl)*7000).toFixed(0):lbl;
+    const dispLbl=isIP?(w*7000).toFixed(0):lbl;
     ctx.fillStyle='#556070';ctx.fillText(dispLbl,mx+pw+4,y+3);
     ctx.strokeStyle='#b0bcc8';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(mx+pw,y);ctx.lineTo(mx+pw+3,y);ctx.stroke();
   });
   ctx.fillStyle='#3d5068';ctx.textAlign='center';ctx.font=`bold ${fs+1}px JetBrains Mono,monospace`;
   ctx.fillText(`Dry Bulb Temperature (${isIP?'°F':'°C'})`,mx+pw/2,H-8);
   ctx.save();ctx.translate(12,my+ph/2);ctx.rotate(-Math.PI/2);
-  ctx.fillText(`Humidity Ratio (${isIP?'grains/lb':'g/kg dry air'})`,0,0);ctx.restore();
+  ctx.fillText(`Humidity Ratio W (${isIP?'grains/lb':'kg/kg dry air'})`,0,0);ctx.restore();
 }
 
 function tlay(el){const k=el.dataset.k;lays[k]=!lays[k];el.classList.toggle('off',!lays[k]);drawChart(lastR,'chart-cv');}
@@ -1502,6 +1522,51 @@ function toggleAnimVis(){
   document.getElementById('av-body').style.display=animVis?'':'none';
   const btn=document.getElementById('av-btn');
   btn.textContent=animVis?'Hide':'Show';btn.classList.toggle('on',!animVis);
+}
+function downloadChart(){
+  const cv=document.getElementById('chart-cv');
+  if(!cv)return;
+  // High-quality: render at 4× on an offscreen canvas by temporarily
+  // overriding devicePixelRatio and calling drawChart on a hidden canvas
+  const HQ_SCALE=4;
+  const cssW=parseInt(cv.style.width)||(cv.parentElement.offsetWidth-22)||900;
+  const cssH=parseInt(cv.style.height)||550;
+  // Create offscreen canvas
+  const hq=document.createElement('canvas');
+  hq.id='_hq_export';
+  hq.style.display='none';
+  document.body.appendChild(hq);
+  // Temporarily set size so drawChart picks it up
+  hq.style.width=cssW+'px';hq.style.height=cssH+'px';
+  hq.width=cssW*HQ_SCALE;hq.height=cssH*HQ_SCALE;
+  const hqCtx=hq.getContext('2d');
+  hqCtx.scale(HQ_SCALE,HQ_SCALE);
+  // Patch getContext so drawChart uses our hq canvas context
+  const origGetCtx=HTMLCanvasElement.prototype.getContext;
+  let patched=false;
+  HTMLCanvasElement.prototype.getContext=function(type,...args){
+    if(this===hq)return hqCtx;
+    return origGetCtx.call(this,type,...args);
+  };
+  // Also patch getElementById so drawChart('chart-cv') finds our hq canvas
+  const origGetById=document.getElementById.bind(document);
+  document.getElementById=function(id){
+    if(id==='chart-cv')return hq;
+    return origGetById(id);
+  };
+  try{
+    drawChart(lastR,'chart-cv');
+  } finally {
+    // Restore originals
+    HTMLCanvasElement.prototype.getContext=origGetCtx;
+    document.getElementById=origGetById;
+  }
+  const link=document.createElement('a');
+  const unit=chartUnit==='SI'?'SI':'IP';
+  link.download=`PSYCHRO-X_Chart_${unit}_ASHRAE_Chart1.png`;
+  link.href=hq.toDataURL('image/png',1.0);
+  link.click();
+  document.body.removeChild(hq);
 }
 function toggleChart(){
   chartVis=!chartVis;
