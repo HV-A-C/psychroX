@@ -193,6 +193,24 @@ nav{position:sticky;top:0;z-index:200;background:var(--surf);border-bottom:1px s
 ::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
 
 @media(max-width:600px){nav{padding:0 .75rem}.brand-div,.brand-desc,.brand-quote,.pill{display:none}.wrap{padding:.75rem .75rem 4.5rem}.grid2{gap:.75rem}.ptbl{font-size:.7rem}}
+
+/* ── altitude toast ── */
+#alt-toast{
+  position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-110%);
+  background:rgba(20,14,4,.82);
+  border-bottom:1px solid rgba(200,130,20,.35);
+  backdrop-filter:blur(6px);
+  color:rgba(240,170,50,.92);
+  font-family:var(--mono);font-size:.58rem;
+  padding:.28rem 1.1rem .28rem .75rem;
+  white-space:nowrap;
+  z-index:2000;
+  border-radius:0 0 6px 6px;
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  pointer-events:none;
+  letter-spacing:.02em;
+}
+#alt-toast.show{transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
@@ -258,6 +276,7 @@ nav{position:sticky;top:0;z-index:200;background:var(--surf);border-bottom:1px s
     <span class="pill pill-g">±5% Accuracy</span>
   </div>
 </nav>
+<div id="alt-toast"></div>
 
 <div class="wrap">
 <div class="grid2">
@@ -1378,7 +1397,14 @@ function startAnim(){
     const ctx=cv.getContext('2d');
     ctx.clearRect(0,0,W,H);
     animT+=.018;
-    const alt=animState.alt||0,altF=Math.min(Math.max(alt/8000,0),1);
+    const alt=animState.alt||0;
+    // ASHRAE Fundamentals 2021 Ch.1 Table 1: practical psychrometric data up to 10 000 m,
+    // but standard HVAC psychrometric charts cover sea level to 2250 m (Chart 7).
+    // Visualiser is scaled to 3000 m = max mountain height for realistic HVAC context.
+    // ASHRAE Fundamentals 2021 Ch.1 Table 1: HVAC psychrometric charts cover up to 2250 m (Chart 7).
+    // Visualiser peak is fixed at 2500 m. Above 2500 m mountain stays at max height.
+    const ASHRAE_VIS_MAX=2500;
+    const altF=Math.min(Math.max(alt/ASHRAE_VIS_MAX,0),1);
     const rh=animState.RH!=null?animState.RH:50,dbt=animState.DBT,P=animState.P||101.325;
     const tNorm=dbt!=null?Math.min(Math.max((dbt+10)/80,0),1):0.4;
 
@@ -1419,7 +1445,8 @@ function startAnim(){
     }
 
     // Terrain
-    const peakH=H*(0.15+altF*.65),groundY=H-32;
+    // Mountain peak height: 0 m → 18% canvas height, 3000 m → 82% (ASHRAE vis range)
+    const peakH=H*(0.18+altF*.64),groundY=H-32;
     ctx.beginPath();ctx.moveTo(0,H);
     [[0,groundY-peakH*.4],[W*.32,groundY-peakH*.7],[W*.48,groundY-peakH*.95],[W*.82,groundY-peakH*.65],[W,groundY-peakH*.3],[W,H]].forEach(([x,y])=>ctx.lineTo(x,y));
     ctx.fillStyle='rgba(20,38,65,.45)';ctx.fill();
@@ -1445,6 +1472,10 @@ function startAnim(){
     ctx.beginPath();ctx.moveTo(barX-4,mY);ctx.lineTo(barX+barW+3,mY);ctx.stroke();
     ctx.fillStyle='rgba(100,220,255,.75)';ctx.font='6px JetBrains Mono,monospace';ctx.textAlign='right';
     ctx.fillText(`${alt.toFixed(0)}m`,barX-6,mY+3);
+    // Scale reference labels on bar
+    ctx.fillStyle='rgba(100,180,220,.35)';ctx.font='5px JetBrains Mono,monospace';ctx.textAlign='left';
+    ctx.fillText('2500m',barX+barW+2,barY+5);
+    ctx.fillText('0m',barX+barW+2,barY+barH-1);
 
     // Temp bar
     if(dbt!=null){
@@ -1492,7 +1523,7 @@ function drawCloud(ctx,cx,cy,size,color){
 }
 
 function getCond(dbt,rh,alt){
-  if(dbt==null)return alt>5000?'HIGH ALTITUDE':alt>2000?'ELEVATED':'SEA LEVEL';
+  if(dbt==null)return alt>10000?'EXTREME ALTITUDE (>ASHRAE Table 1)':alt>3000?'VERY HIGH ALTITUDE':alt>2250?'HIGH ALTITUDE (>Chart 7 range)':alt>1500?'HIGH ALTITUDE':alt>500?'ELEVATED':'SEA LEVEL';
   if(rh>=98)return'SATURATION — CONDENSING';
   if(rh>=85)return'NEAR SATURATION';
   if(dbt>45)return'EXTREME HEAT';
@@ -1507,7 +1538,8 @@ function getCond(dbt,rh,alt){
 
 function updAnim(d){
   Object.assign(animState,d);
-  document.getElementById('av-alt').textContent=`Alt: ${(d.alt||0).toFixed(0)} m`;
+  const alt=d.alt||0;
+  document.getElementById('av-alt').textContent=`Alt: ${alt.toFixed(0)} m`;
   if(d.P)document.getElementById('av-p').textContent=`P: ${d.P.toFixed(3)} kPa`;
   if(d.DBT!=null)document.getElementById('av-t').innerHTML=`T<sub>db</sub>: ${d.DBT.toFixed(1)} °C`;
   if(d.RH!=null)document.getElementById('av-rh').textContent=`φ: ${d.RH.toFixed(0)} %`;
